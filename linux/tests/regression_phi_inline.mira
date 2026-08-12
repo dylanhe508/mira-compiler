@@ -1,0 +1,23 @@
+fn branch_callee(value) {
+    mut result = 5;
+    if (value < 0) {
+        result = value + 10;
+    } else {
+        result = value + 20;
+    }
+    result
+}
+
+fn caller(flag, value) {
+    mut result = branch_callee(value);
+    if (flag) {
+        result = result + 100;
+    } else {
+        result = result + 200;
+    }
+    result
+}
+
+fn main() {
+    print(caller(0, 0 - 4));
+}

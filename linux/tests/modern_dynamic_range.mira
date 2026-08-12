@@ -1,0 +1,14 @@
+fn sum_range(start: i64, end: i64) -> i64 {
+    mut sum = 0;
+    for index in start + 1..end - 1 {
+        if (index == 4) {
+            continue;
+        }
+        sum += index;
+    }
+    sum
+}
+
+fn main() {
+    print(sum_range(1, 9));
+}

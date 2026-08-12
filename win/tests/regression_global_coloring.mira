@@ -1,0 +1,17 @@
+fn combine(a, b, c, d, e, f, g, h) {
+    a * 3 + b * 5 + c * 7 + d * 11 + e * 13 + f * 17 + g * 19 + h * 23
+}
+
+fn pressure(count) {
+    mut total = 0;
+    mut i = 0;
+    while (i < count) {
+        total = total + combine(i + 1, i + 2, i + 3, i + 4, i + 5, i + 6, i + 7, i + 8);
+        i = i + 1;
+    }
+    total
+}
+
+fn main() {
+    print(pressure(200000))
+}

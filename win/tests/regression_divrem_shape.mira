@@ -1,0 +1,30 @@
+fn paired(x, divisor) {
+    mut dividend = x;
+    mut divisor_value = divisor;
+    mut quotient = dividend / divisor_value;
+    mut spacer = quotient * 31 + dividend;
+    spacer = spacer * 3 + divisor_value;
+    spacer = spacer * 5 + dividend;
+    spacer = spacer * 7 + divisor_value;
+    spacer = spacer * 11 + dividend;
+    spacer = spacer * 13 + divisor_value;
+    spacer = spacer * 17 + dividend;
+    spacer = spacer * 19 + divisor_value;
+    spacer = spacer * 23 + dividend;
+    spacer = spacer * 29 + divisor_value;
+    spacer = spacer * 31 + dividend;
+    spacer = spacer * 37 + divisor_value;
+    spacer = spacer * 41 + dividend;
+    mut remainder = dividend % divisor_value;
+    quotient * 131 + remainder * 17 + spacer
+}
+
+fn main() {
+    mut dividend = clock();
+    mut divisor = dividend | 1;
+    mut other_dividend = dividend + 17;
+    mut other_divisor = other_dividend | 1;
+    mut first = paired(dividend, divisor);
+    mut second = paired(other_dividend, other_divisor);
+    print(first + second);
+}

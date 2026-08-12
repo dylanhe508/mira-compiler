@@ -1,0 +1,26 @@
+fn paired(x, divisor) {
+    mut dividend = x;
+    mut divisor_value = divisor;
+    mut quotient = dividend / divisor_value;
+    mut spacer = quotient * 31 + dividend;
+    mut remainder = dividend % divisor_value;
+    quotient * 131 + remainder * 17 + spacer
+}
+
+fn unrelated_div(x, divisor) {
+    x / divisor
+}
+
+fn main() {
+    mut checksum = 0;
+    checksum = checksum * 257 + paired(0, 7);
+    checksum = checksum * 257 + paired(0, -5);
+    checksum = checksum * 257 + paired(17, 3);
+    checksum = checksum * 257 + paired(17, -3);
+    checksum = checksum * 257 + paired(-17, 3);
+    checksum = checksum * 257 + paired(-17, -3);
+    checksum = checksum * 257 + paired(9223372036854775806, 97);
+    checksum = checksum * 257 + paired(-9223372036854775807, -97);
+    checksum = checksum * 257 + unrelated_div(100, 7);
+    print(checksum);
+}

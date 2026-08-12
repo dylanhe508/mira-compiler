@@ -1,0 +1,12 @@
+fn add_arrays(dst, left, right, n) {
+    mut i = 0;
+    while (i < n) {
+        mut offset = i * 8;
+        mut x = (left + offset) @;
+        mut y = (right + offset) @;
+        (x + y) (dst + offset) !;
+        i = i + 1;
+    }
+}
+
+fn main() { 0 }

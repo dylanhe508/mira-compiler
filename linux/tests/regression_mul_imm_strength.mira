@@ -1,0 +1,17 @@
+fn constant_muls(x) {
+    mut result = x * 0;
+    result = result + x * 1;
+    result = result + x * (0 - 1);
+    result = result + x * 2;
+    result = result + x * (0 - 2);
+    result = result + x * 8;
+    result = result + x * (0 - 8);
+    result = result + x * (0 - 4611686018427387904);
+    result = result + x * 3;
+    result
+}
+
+fn main() {
+    print(constant_muls(123456789));
+    print(constant_muls(-987654321));
+}

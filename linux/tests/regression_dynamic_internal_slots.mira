@@ -1,0 +1,244 @@
+fn slot_0() {
+    mut total = 0;
+    mut i = 1;
+    while (i < 41) {
+        total = total + (i * 17 + 11);
+        i = i + 1;
+    }
+    total
+}
+
+fn slot_1() {
+    mut total = 0;
+    mut i = 2;
+    while (i < 42) {
+        total = total + (i * 19 + 12);
+        i = i + 1;
+    }
+    total
+}
+
+fn slot_2() {
+    mut total = 0;
+    mut i = 3;
+    while (i < 43) {
+        total = total + (i * 21 + 13);
+        i = i + 1;
+    }
+    total
+}
+
+fn slot_3() {
+    mut total = 0;
+    mut i = 4;
+    while (i < 44) {
+        total = total + (i * 23 + 14);
+        i = i + 1;
+    }
+    total
+}
+
+fn slot_4() {
+    mut total = 0;
+    mut i = 5;
+    while (i < 45) {
+        total = total + (i * 25 + 15);
+        i = i + 1;
+    }
+    total
+}
+
+fn slot_5() {
+    mut total = 0;
+    mut i = 6;
+    while (i < 46) {
+        total = total + (i * 27 + 16);
+        i = i + 1;
+    }
+    total
+}
+
+fn slot_6() {
+    mut total = 0;
+    mut i = 7;
+    while (i < 47) {
+        total = total + (i * 29 + 17);
+        i = i + 1;
+    }
+    total
+}
+
+fn slot_7() {
+    mut total = 0;
+    mut i = 8;
+    while (i < 48) {
+        total = total + (i * 31 + 18);
+        i = i + 1;
+    }
+    total
+}
+
+fn slot_8() {
+    mut total = 0;
+    mut i = 9;
+    while (i < 49) {
+        total = total + (i * 33 + 19);
+        i = i + 1;
+    }
+    total
+}
+
+fn slot_9() {
+    mut total = 0;
+    mut i = 10;
+    while (i < 50) {
+        total = total + (i * 35 + 20);
+        i = i + 1;
+    }
+    total
+}
+
+fn slot_10() {
+    mut total = 0;
+    mut i = 11;
+    while (i < 51) {
+        total = total + (i * 37 + 21);
+        i = i + 1;
+    }
+    total
+}
+
+fn slot_11() {
+    mut total = 0;
+    mut i = 12;
+    while (i < 52) {
+        total = total + (i * 39 + 22);
+        i = i + 1;
+    }
+    total
+}
+
+fn slot_12() {
+    mut total = 0;
+    mut i = 13;
+    while (i < 53) {
+        total = total + (i * 41 + 23);
+        i = i + 1;
+    }
+    total
+}
+
+fn slot_13() {
+    mut total = 0;
+    mut i = 14;
+    while (i < 54) {
+        total = total + (i * 43 + 24);
+        i = i + 1;
+    }
+    total
+}
+
+fn slot_14() {
+    mut total = 0;
+    mut i = 15;
+    while (i < 55) {
+        total = total + (i * 45 + 25);
+        i = i + 1;
+    }
+    total
+}
+
+fn slot_15() {
+    mut total = 0;
+    mut i = 16;
+    while (i < 56) {
+        total = total + (i * 47 + 26);
+        i = i + 1;
+    }
+    total
+}
+
+fn slot_16() {
+    mut total = 0;
+    mut i = 17;
+    while (i < 57) {
+        total = total + (i * 49 + 27);
+        i = i + 1;
+    }
+    total
+}
+
+fn slot_17() {
+    mut total = 0;
+    mut i = 18;
+    while (i < 58) {
+        total = total + (i * 51 + 28);
+        i = i + 1;
+    }
+    total
+}
+
+fn slot_18() {
+    mut total = 0;
+    mut i = 19;
+    while (i < 59) {
+        total = total + (i * 53 + 29);
+        i = i + 1;
+    }
+    total
+}
+
+fn slot_19() {
+    mut total = 0;
+    mut i = 20;
+    while (i < 60) {
+        total = total + (i * 55 + 30);
+        i = i + 1;
+    }
+    total
+}
+
+fn main() {
+    mut checksum = 0;
+    mut value_0 = slot_0();
+    checksum = checksum * 131 + value_0;
+    mut value_1 = slot_1();
+    checksum = checksum * 131 + value_1;
+    mut value_2 = slot_2();
+    checksum = checksum * 131 + value_2;
+    mut value_3 = slot_3();
+    checksum = checksum * 131 + value_3;
+    mut value_4 = slot_4();
+    checksum = checksum * 131 + value_4;
+    mut value_5 = slot_5();
+    checksum = checksum * 131 + value_5;
+    mut value_6 = slot_6();
+    checksum = checksum * 131 + value_6;
+    mut value_7 = slot_7();
+    checksum = checksum * 131 + value_7;
+    mut value_8 = slot_8();
+    checksum = checksum * 131 + value_8;
+    mut value_9 = slot_9();
+    checksum = checksum * 131 + value_9;
+    mut value_10 = slot_10();
+    checksum = checksum * 131 + value_10;
+    mut value_11 = slot_11();
+    checksum = checksum * 131 + value_11;
+    mut value_12 = slot_12();
+    checksum = checksum * 131 + value_12;
+    mut value_13 = slot_13();
+    checksum = checksum * 131 + value_13;
+    mut value_14 = slot_14();
+    checksum = checksum * 131 + value_14;
+    mut value_15 = slot_15();
+    checksum = checksum * 131 + value_15;
+    mut value_16 = slot_16();
+    checksum = checksum * 131 + value_16;
+    mut value_17 = slot_17();
+    checksum = checksum * 131 + value_17;
+    mut value_18 = slot_18();
+    checksum = checksum * 131 + value_18;
+    mut value_19 = slot_19();
+    checksum = checksum * 131 + value_19;
+    print(checksum);
+}

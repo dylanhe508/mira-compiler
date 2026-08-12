@@ -1,0 +1,17 @@
+struct Point {
+    x: i64,
+    y: i64
+}
+
+impl Point {
+    fn move_x(mut self, delta: i64) {
+        self.x += delta;
+    }
+}
+
+fn main() {
+    mut point = Point(20, 22);
+    point.x += 2;
+    point.move_x(20);
+    print(point.x);
+}
