@@ -1,0 +1,14 @@
+fn explode() {
+    throw("boom");
+}
+
+fn main() {
+    mut caught = 0;
+    try {
+        explode();
+        caught = -1;
+    } catch (error) {
+        caught = 42;
+    }
+    print(caught);
+}

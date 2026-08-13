@@ -1,0 +1,27 @@
+var g = 12345;
+
+fn cap_test(n) {
+    mut a = 1;
+    mut i = 0;
+    while (i < n) {
+        a = a * 1103515245 + 12345;
+        a = (a << 7) ^ (a >> 9);
+        a = a & 2147483647;
+        a = a | 4096;
+        a = a ^ 3735928559;
+        a = a % 99991;
+        if (a < 0) { a = a + 100000; }
+        else { a = a - 3; }
+        if (a > 50000) { a = a - 7; }
+        else { a = a + 11; }
+        i = i + 1;
+    }
+    a
+}
+
+fn main() {
+    mut r1 = cap_test(1000);
+    mut r2 = g + r1;
+    print(r1);
+    print(r2);
+}

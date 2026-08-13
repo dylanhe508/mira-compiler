@@ -1,0 +1,10 @@
+fn main() {
+    let ch = channel(1);
+    let task = go([] {
+        send(ch, 42);
+    });
+    let value = recv(ch);
+    join-task(task);
+    close-channel(ch);
+    print(value);
+}

@@ -1,0 +1,14 @@
+struct Point {
+    x: i64
+}
+
+impl Point {
+    fn change(mut self) {
+        self.x = 2;
+    }
+}
+
+fn main() {
+    let point = Point(1);
+    point.change();
+}

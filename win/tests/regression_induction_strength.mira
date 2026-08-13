@@ -1,0 +1,71 @@
+fn positive_step() {
+    mut total = 0;
+    mut i = 3;
+    while (i < 53) {
+        total = total + (i * 17 + 11);
+        i = i + 1;
+    }
+    total
+}
+
+fn negative_step() {
+    mut total = 0;
+    mut i = 61;
+    while (i > -19) {
+        total = total + (i * -19 + 23);
+        i = i - 1;
+    }
+    total
+}
+
+fn nonunit_step() {
+    mut total = 0;
+    mut i = -29;
+    while (i < 79) {
+        total = total + (i * 37 - 101);
+        i = i + 5;
+    }
+    total
+}
+
+fn wraparound() {
+    mut total = 0;
+    mut i = 9223372036854775803;
+    mut rounds = 0;
+    while (rounds < 8) {
+        total = total + (i * -7 + 13);
+        i = i + 1;
+        rounds = rounds + 1;
+    }
+    total
+}
+
+fn nested_induction() {
+    mut total = 0;
+    mut i = 2;
+    while (i < 23) {
+        total = total + (i * 13 + 7);
+        mut j = 31;
+        while (j > 0) {
+            total = total + (j * -5 + 19);
+            j = j - 2;
+        }
+        i = i + 3;
+    }
+    total
+}
+
+fn main() {
+    mut positive = positive_step();
+    mut negative = negative_step();
+    mut nonunit = nonunit_step();
+    mut wrapped = wraparound();
+    mut nested = nested_induction();
+    mut checksum = 0;
+    checksum = checksum * 131 + positive;
+    checksum = checksum * 131 + negative;
+    checksum = checksum * 131 + nonunit;
+    checksum = checksum * 131 + wrapped;
+    checksum = checksum * 131 + nested;
+    print(checksum);
+}

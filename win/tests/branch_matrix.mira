@@ -1,0 +1,47 @@
+fn add_sub_imm(n) {
+    mut sum = 0;
+    mut x = 1;
+    mut i = 0;
+    while (i < n) {
+        x = x * 6364136223846793005 + 1;
+        if (x < 0) { sum = sum + 7; }
+        else { sum = sum - 11; }
+        i = i + 1;
+    }
+    sum
+}
+
+fn add_different(n) {
+    mut sum = 0;
+    mut x = 1;
+    mut i = 0;
+    while (i < n) {
+        x = x * 6364136223846793005 + 1;
+        if (x < 0) { sum = sum + i; }
+        else { sum = sum + x; }
+        i = i + 1;
+    }
+    sum
+}
+
+fn select_values(n) {
+    mut sum = 0;
+    mut x = 1;
+    mut i = 0;
+    while (i < n) {
+        x = x * 6364136223846793005 + 1;
+        mut chosen = 0;
+        if (x < 0) { chosen = i; }
+        else { chosen = x; }
+        sum = sum + chosen;
+        i = i + 1;
+    }
+    sum
+}
+
+fn main() {
+    mut a = add_sub_imm(1000000);
+    mut b = add_different(1000000);
+    mut c = select_values(1000000);
+    print(a); print(b); print(c);
+}

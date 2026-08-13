@@ -1,0 +1,18 @@
+fn ds1(x, i) { if ((x & 1) == 0) { x / 3 + i * 7 } else { x * 5 - i } }
+fn ds2(x, i) { if ((x & 7) < 3) { x + i * 11 } else { x - i * 13 } }
+fn ds3(x, i) { mut q = (i & 127) + 3; x / q + x % q + i }
+fn ds4(x, i) { if ((i & 255) == 0) { x ^ (i * 65537) } else { x * 17 + 29 } }
+fn ds5(x, i) { ds4(ds3(ds2(ds1(x, i), i), i), i) }
+fn deep_small(n) {
+    mut x = -9918273; mut a = 1; mut b = 2; mut c = 3; mut d = 4; mut i = 1;
+    while (i <= n) {
+        x = ds5(x, i);
+        if ((x & 15) == 0) { a = a + x; }
+        else if ((x & 15) < 5) { b = b - x; }
+        else if ((x & 15) < 11) { c = c ^ x; }
+        else { d = d + x * i; }
+        i = i + 1;
+    }
+    d
+}
+fn main() { print(deep_small(1)); }
