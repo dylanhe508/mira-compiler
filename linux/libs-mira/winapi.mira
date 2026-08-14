@@ -1,0 +1,117 @@
+# winapi.mira — Windows x64 API 标准库
+# import "/libs-mira/winapi.mira"
+# 所有函数基于内建词 msgbox/sleep/shell/env/clipboard-*/beep*/console-title/color-set/cursor-move/screen-*/pid/tick
+
+# ═══════════════════════════════════════
+# 弹窗
+# ═══════════════════════════════════════
+
+# 信息弹窗（MB_OK），返回按钮 ID
+alert: { msg } msg "Mira" msgbox
+
+# 带标题的弹窗
+alert-titled: { msg title } msg title msgbox
+
+# 确认弹窗（MB_YESNO=4），返回 6=Yes 7=No
+confirm: { msg } msg "Mira" 4 msgbox-ex
+
+# 警告弹窗（MB_ICONWARNING | MB_OK = 0x30）
+warn: { msg } msg "Warning" 48 msgbox-ex
+
+# 错误弹窗（MB_ICONERROR | MB_OK = 0x10）
+error-box: { msg } msg "Error" 16 msgbox-ex
+
+# ═══════════════════════════════════════
+# 系统
+# ═══════════════════════════════════════
+
+# 延时（毫秒）
+delay: { ms } ms sleep
+
+# 执行命令，返回 exit code
+exec: { cmd } cmd shell
+
+# 读取环境变量
+getenv: { key } key env
+
+# 设置环境变量
+setenv: { key val } key val env-set
+
+# 获取进程 ID
+process-id: { pid }
+
+# 获取系统运行毫秒数
+uptime: { tick }
+
+# ═══════════════════════════════════════
+# 剪贴板
+# ═══════════════════════════════════════
+
+# 复制到剪贴板
+copy: { text } text clipboard-set
+
+# 从剪贴板粘贴
+paste: { clipboard-get }
+
+# ═══════════════════════════════════════
+# 控制台
+# ═══════════════════════════════════════
+
+# 设置窗口标题
+set-title: { title } title console-title
+
+# 设置文字颜色（0-15）
+#  0=黑 1=蓝 2=绿 3=青 4=红 5=紫 6=黄 7=白
+#  8-15: 对应亮色版
+set-color: { c } c color-set
+
+# 恢复默认颜色
+reset-color: { 7 color-set }
+
+# 红色文字
+red: { 12 color-set }
+
+# 绿色文字
+green: { 10 color-set }
+
+# 蓝色文字
+blue: { 9 color-set }
+
+# 黄色文字
+yellow: { 14 color-set }
+
+# 白色文字
+white: { 15 color-set }
+
+# 移动光标
+goto-xy: { x y } x y cursor-move
+
+# 清屏（通过 system cls）
+cls: { "cls" shell }
+
+# ═══════════════════════════════════════
+# 屏幕信息
+# ═══════════════════════════════════════
+
+# 屏幕分辨率
+get-width: { screen-width }
+get-height: { screen-height }
+
+# ═══════════════════════════════════════
+# 声音
+# ═══════════════════════════════════════
+
+# 简单提示音
+ding: { beep }
+
+# 指定频率/时长
+tone: { freq ms } freq ms beep-freq
+
+# 音阶演示
+note-c: { 262 200 beep-freq }
+note-d: { 294 200 beep-freq }
+note-e: { 330 200 beep-freq }
+note-f: { 349 200 beep-freq }
+note-g: { 392 200 beep-freq }
+note-a: { 440 200 beep-freq }
+note-b: { 494 200 beep-freq }

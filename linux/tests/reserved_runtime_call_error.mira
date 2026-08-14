@@ -1,0 +1,1 @@
+fn main() { print(__mira_string_length(0)); }

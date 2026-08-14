@@ -1,0 +1,5 @@
+import std.math;
+fn main() {
+    print(math.abs(-42));
+    print(math.clamp(120, 0, 100));
+}

@@ -1,0 +1,51 @@
+fn add_arrays(dst, left, right, n) {
+    mut i = 0;
+    while (i < n) {
+        mut offset = i * 8;
+        mut x = (left + offset) @;
+        mut y = (right + offset) @;
+        (x + y) (dst + offset) !;
+        i = i + 1;
+    }
+}
+
+fn fill_seq(p, n, base) {
+    mut i = 0;
+    while (i < n) {
+        (base + i) (p + i * 8) !;
+        i = i + 1;
+    }
+}
+
+fn print_seq(p, n) {
+    mut i = 0;
+    while (i < n) {
+        print((p + i * 8) @);
+        i = i + 1;
+    }
+}
+
+fn main() {
+    mut left = mem_alloc(80);
+    mut right = mem_alloc(80);
+    mut dst = mem_alloc(80);
+    fill_seq(left, 10, 10);
+    fill_seq(right, 10, 100);
+
+    777 (dst) !;
+    add_arrays(dst, left, right, 0);
+    print((dst) @);
+
+    add_arrays(dst, left, right, 1); print_seq(dst, 1);
+    add_arrays(dst, left, right, 3); print_seq(dst, 3);
+    add_arrays(dst, left, right, 4); print_seq(dst, 4);
+    add_arrays(dst, left, right, 5); print_seq(dst, 5);
+
+    fill_seq(left, 10, 10);
+    add_arrays(left + 8, left, right, 5);
+    print_seq(left, 6);
+
+    fill_seq(left, 10, 10);
+    add_arrays(left, left + 8, right, 5);
+    print_seq(left, 6);
+}

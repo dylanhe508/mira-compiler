@@ -1,0 +1,31 @@
+Mira 当前发展方向（2026-07-30）
+
+一、并发运行时
+1. 保持固定 worker、轻量任务、Channel、select、join、yield/park 的完整语义。
+2. fast task 使用 worker 分片 inbox、单 worker 唤醒与安全任务窃取。
+3. 已启动或挂起的 Fiber 保持线程亲和，禁止跨线程恢复。
+4. 继续降低分片锁、逐任务提交和唤醒开销，目标是在10万极小任务测试中接近 Windows Thread Pool。
+
+二、静态引用与智策
+1. 静态引用继续负责共享、逃逸、捕获、所有权和并发效果事实。
+2. 智策沿调用图传播 may_suspend。
+3. 只有被完整证明不可挂起的 lambda 才走无 Fiber fast 路径。
+4. Channel、join、yield、wait、sleep、间接调用和未知外部调用必须保守走 Fiber。
+5. 后续让智策决定批量提交、队列策略和内联预算，但证据不足时不得牺牲正确性。
+
+三、质量标准
+1. 不针对 fib 或并发 benchmark 特判。
+2. O0-O3 语义一致。
+3. 10行级程序预热后三次编译低于100ms。
+4. 所有新优化必须先有失败测试，再实现，再运行完整回归。
+
+当前验证数据
+- 10万 fast task：工作区9轮中位数约37.99ms。
+- 同机 Windows Thread Pool：约20.23ms。
+- 两个120ms阻塞任务：约128-135ms。
+- fib：约22.5ms。
+- 调度器、Channel、select、静态引用及 O0-O3 回归通过。
+
+注意
+- mira-concurrency-final.exe 是当前验证编译器，尚未自动覆盖正式 mira.exe。
+- E盘新生成的部分 benchmark EXE 可能被 Windows Application Control 暂时拦截。

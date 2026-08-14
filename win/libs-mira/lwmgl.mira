@@ -1,0 +1,13 @@
+# LWMGL declarations. Static reference owns call arity and value flow;
+# the linker resolves these exports from libs-dll/lwmgl.dll automatically.
+extern lwmgl-init: { width height }
+extern lwmgl-enable-3d: { }
+extern lwmgl-draw-cube: { rx ry rz size }
+extern lwmgl-clear: { r g b }
+extern lwmgl-color: { r g b }
+extern lwmgl-rect: { x y w h }
+extern lwmgl-swap: { }
+extern lwmgl-sleep: { ms }
+extern lwmgl-close: { }
+extern lwmgl-draw-triangle: { rx ry rz size }
+extern lwmgl-draw-circle: { x y z radius }

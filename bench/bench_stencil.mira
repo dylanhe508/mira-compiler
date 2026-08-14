@@ -1,0 +1,42 @@
+# matrix_stencil_long 计时版:嵌套循环 + 除法 + 分支,193x257x350
+fn long_cell(r, c, seed) {
+    (r * 73856093) ^ (c * 19349663) ^ seed
+}
+
+fn long_stencil(rows, cols, rounds) {
+    mut total = 0;
+    mut round = 0;
+    while (round < rounds) {
+        mut r = 1;
+        while (r < rows - 1) {
+            mut row = 0;
+            mut c = 1;
+            while (c < cols - 1) {
+                mut center = long_cell(r, c, round + 17);
+                mut value = center * 4;
+                value = value + long_cell(r - 1, c, round + 17);
+                value = value + long_cell(r + 1, c, round + 17);
+                value = value + long_cell(r, c - 1, round + 17);
+                value = value + long_cell(r, c + 1, round + 17);
+                value = value / 8;
+                if ((value & 7) == 0) { row = row - value; }
+                else { row = row + value; }
+                c = c + 1;
+            }
+            total = total * 17 + row;
+            r = r + 1;
+        }
+        round = round + 1;
+    }
+    total
+}
+
+fn main() {
+    mut start_time = clock-ns();
+    mut result = long_stencil(193, 257, 350);
+    mut end_time = clock-ns();
+    print("result=");
+    print(result);
+    print("elapsed_ns=");
+    print(end_time - start_time);
+}

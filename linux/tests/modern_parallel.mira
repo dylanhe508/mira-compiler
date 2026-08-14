@@ -1,0 +1,12 @@
+fn main() {
+    let start = clock();
+    let first = parallel([] {
+        sleep(120);
+    });
+    let second = parallel([] {
+        sleep(120);
+    });
+    join(first);
+    join(second);
+    print(clock() - start);
+}

@@ -1,0 +1,9 @@
+extern fn __mira_math_abs(value: i64) -> i64;
+extern fn __mira_math_sqrt(value: f64) -> f64;
+extern fn __mira_int_to_string(value: i64) -> str;
+extern fn __mira_random_seed(value: i64);
+
+fn answer() { __mira_math_abs(-42) }
+fn sqrt_answer() { __mira_math_sqrt(81.0) }
+fn text_answer() { __mira_int_to_string(12345) }
+fn seed_then_answer() { __mira_random_seed(7); 77 }

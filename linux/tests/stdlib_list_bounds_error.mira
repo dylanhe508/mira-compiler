@@ -1,0 +1,7 @@
+import std.list as list;
+
+fn main() {
+    mut values = list.new();
+    values = list.push(values, 1);
+    print(list.get(values, 1));
+}

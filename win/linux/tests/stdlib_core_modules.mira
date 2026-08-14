@@ -1,0 +1,29 @@
+import std.random as random;
+import std.string as string;
+import std.time as time;
+
+fn main() {
+    random.seed(12345);
+    mut first = random.int();
+    mut second = random.int();
+    random.seed(12345);
+    print(first == random.int());
+    print(second == random.int());
+    mut ranged = random.range(10, 20);
+    print(ranged >= 10 && ranged < 20);
+    mut bit = random.bool();
+    print(bit == 0 || bit == 1);
+
+    print(string.length("mira"));
+    print(string.equal(string.concat("mi", "ra"), "mira"));
+    print(string.contains("abcdef", "cde"));
+    print(string.find("abcdef", "cde"));
+    print(string.at("ABC", 1));
+    print(string.to_int("-42"));
+
+    mut before = time.monotonic();
+    time.sleep(1);
+    mut after = time.monotonic();
+    print(after >= before);
+    print(time.now() > 0);
+}

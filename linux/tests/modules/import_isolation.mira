@@ -1,0 +1,5 @@
+import left as left;
+import right as right;
+fn main() {
+    print(left.value() + right.value());
+}

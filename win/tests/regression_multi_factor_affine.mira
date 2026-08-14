@@ -1,0 +1,17 @@
+fn multi_factor() {
+    mut total = 0;
+    mut i = 3;
+    while (i < 103) {
+        total = total + i * 3;
+        total = total + i * 5;
+        total = total + i * 7;
+        total = total + i * 5;
+        i = i + 1;
+    }
+    total
+}
+
+fn main() {
+    mut result = multi_factor();
+    print(result);
+}

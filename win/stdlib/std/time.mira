@@ -1,0 +1,15 @@
+extern fn __mira_time_now() -> i64;
+extern fn __mira_time_ticks_ns() -> i64;
+extern fn __mira_time_sleep(milliseconds: i64);
+
+fn now() {
+    __mira_time_now()
+}
+
+fn monotonic() {
+    __mira_time_ticks_ns()
+}
+
+fn sleep(milliseconds) {
+    __mira_time_sleep(milliseconds);
+}

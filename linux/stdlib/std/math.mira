@@ -1,0 +1,35 @@
+extern fn __mira_math_abs(value: i64) -> i64;
+extern fn __mira_math_min(left: i64, right: i64) -> i64;
+extern fn __mira_math_max(left: i64, right: i64) -> i64;
+extern fn __mira_math_sqrt(value: f64) -> f64;
+extern fn __mira_math_pow(value: f64, exponent: f64) -> f64;
+
+fn abs(value) {
+    __mira_math_abs(value)
+}
+
+fn min(left, right) {
+    __mira_math_min(left, right)
+}
+
+fn max(left, right) {
+    __mira_math_max(left, right)
+}
+
+fn clamp(value, low, high) {
+    if (value < low) {
+        return low;
+    }
+    if (value > high) {
+        return high;
+    }
+    value
+}
+
+fn sqrt(value) {
+    __mira_math_sqrt(value)
+}
+
+fn pow(value, exponent) {
+    __mira_math_pow(value, exponent)
+}

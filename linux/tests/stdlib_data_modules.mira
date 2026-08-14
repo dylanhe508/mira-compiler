@@ -1,0 +1,60 @@
+import std.io as io;
+import std.fs as fs;
+import std.list as list;
+import std.string as string;
+
+fn main() {
+    mut values = list.new();
+    values = list.push(values, 10);
+    values = list.push(values, 20);
+    values = list.push(values, 30);
+    list.set(values, 1, 25);
+    print(list.length(values));
+    print(list.get(values, 0));
+    print(list.get(values, 1));
+    print(list.get(values, 2));
+
+    fs.write("mira_stdlib_test.txt", "hello");
+    fs.append("mira_stdlib_test.txt", " mira");
+    print(fs.exists("mira_stdlib_test.txt"));
+    mut content = fs.read("mira_stdlib_test.txt");
+    print(string.equal(content, "hello mira"));
+    fs.remove("mira_stdlib_test.txt");
+    print(fs.exists("mira_stdlib_test.txt"));
+
+    io.println(77);
+    list.free(values);
+
+    mut numbers = list.new();
+    numbers = list.push(numbers, 5);
+    numbers = list.push(numbers, -2);
+    numbers = list.push(numbers, 9);
+    numbers = list.push(numbers, 5);
+    numbers = list.push(numbers, 0);
+    numbers = list.push(numbers, 12);
+    numbers = list.push(numbers, -7);
+    print(list.min(numbers));
+    print(list.max(numbers));
+    print(list.sum(numbers));
+    print(list.contains(numbers, 5));
+    print(list.contains(numbers, 99));
+    print(list.index_of(numbers, 9));
+    list.sort(numbers);
+    mut index = 0;
+    while (index < list.length(numbers)) {
+        print(list.get(numbers, index));
+        index = index + 1;
+    }
+    list.reverse(numbers);
+    print(list.get(numbers, 0));
+    print(list.get(numbers, list.length(numbers) - 1));
+    numbers = list.insert(numbers, 1, 99);
+    print(list.first(numbers));
+    print(list.last(numbers));
+    print(list.remove_at(numbers, 1));
+    print(list.pop(numbers));
+    print(list.length(numbers));
+    list.clear(numbers);
+    print(list.length(numbers));
+    list.free(numbers);
+}

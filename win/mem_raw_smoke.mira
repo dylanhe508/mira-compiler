@@ -1,0 +1,8 @@
+main: {
+  p: 64 allocate
+  0 8 for { i dup 8 * p @ + ! }
+  sum: 0
+  0 8 for { i 8 * p @ + @ sum @ + sum ! }
+  sum @ print
+  p @ free
+}

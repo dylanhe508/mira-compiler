@@ -1,0 +1,7 @@
+fn main() {
+    let task = go([] {
+        print(7);
+    });
+    join-task(task);
+    print(8);
+}

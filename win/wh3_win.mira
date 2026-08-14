@@ -1,0 +1,21 @@
+fn f(rows, cols, rounds) {
+    mut total = 0;
+    mut round = 0;
+    while (round < rounds) {
+        mut r = 1;
+        while (r < rows) {
+            mut row = 0;
+            mut c = 1;
+            while (c < cols) {
+                row = row + 1;
+                c = c + 1;
+            }
+            total = total * 17 + row;
+            r = r + 1;
+        }
+        round = round + 1;
+    }
+    total
+}
+
+fn main() { print(f(19, 25, 30)); }

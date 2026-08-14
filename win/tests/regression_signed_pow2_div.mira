@@ -1,0 +1,19 @@
+fn div8(x) {
+    x / 8
+}
+
+fn main() {
+    mut result = 0;
+    result = result * 31 + div8(-17);
+    result = result * 31 + div8(-9);
+    result = result * 31 + div8(-8);
+    result = result * 31 + div8(-7);
+    result = result * 31 + div8(-1);
+    result = result * 31 + div8(0);
+    result = result * 31 + div8(1);
+    result = result * 31 + div8(7);
+    result = result * 31 + div8(8);
+    result = result * 31 + div8(9);
+    result = result * 31 + div8(17);
+    print(result);
+}

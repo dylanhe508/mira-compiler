@@ -1,0 +1,2 @@
+import std.runtime_probe;
+fn main() { print(runtime_probe.answer()); }

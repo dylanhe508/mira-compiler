@@ -1,0 +1,16 @@
+fn work(n) {
+    mut sum = 0;
+    mut i = 1;
+    while (i <= n) {
+        sum = sum + ((i * 17) % 1009) + (i / 1009);
+        i = i + 1;
+    }
+    sum
+}
+fn main() {
+    mut start_time = clock-ns();
+    mut result = work(1000000);
+    mut end_time = clock-ns();
+    print("result="); print(result);
+    print("elapsed_ns="); print(end_time - start_time);
+}

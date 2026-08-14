@@ -1,0 +1,25 @@
+fn hot_step(x, salt) {
+    (x * 17 + salt) & 9223372036854775807
+}
+
+fn pressure_call(x) {
+    mut a = x + 1;
+    mut b = x * 3 + 2;
+    mut c = x * 5 + 3;
+    mut d = x * 7 + 4;
+    mut e = x * 11 + 5;
+    mut f = x * 13 + 6;
+    mut g = x * 17 + 7;
+    mut h = x * 19 + 8;
+    mut i = x * 23 + 9;
+    mut j = x * 29 + 10;
+    mut k = x * 31 + 11;
+    mut l = x * 37 + 12;
+    mut called = hot_step(x, 99);
+    (called + a * 3 + b * 5 + c * 7 + d * 11 + e * 13 + f * 17 +
+        g * 19 + h * 23 + i * 29 + j * 31 + k * 37 + l * 41) & 9223372036854775807
+}
+
+fn main() {
+    print(pressure_call(24680));
+}

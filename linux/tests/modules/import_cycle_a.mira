@@ -1,0 +1,6 @@
+import import_cycle_b;
+
+fn from_a() {
+    1
+}
+

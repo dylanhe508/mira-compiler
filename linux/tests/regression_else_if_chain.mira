@@ -1,0 +1,37 @@
+fn first(seed) {
+    mut x = seed;
+    if (x < 0) {
+        x = -x + 7;
+    } else {
+        x = 999;
+    }
+    x
+}
+
+fn chain(seed) {
+    mut x = seed;
+    if (x < 0) {
+        x = -x + 7;
+    } else if ((x & 1) == 0) {
+        x = x / 2 + 11;
+    } else {
+        x = x * 3 - 5;
+    }
+    x
+}
+
+fn finish(x) {
+    mut y = x;
+    if ((y % 3) == 0) {
+        y = y + 17;
+    } else {
+        y = y - 9;
+    }
+    y
+}
+
+fn main() {
+    print(first(-84));
+    print(chain(-84));
+    print(finish(91));
+}

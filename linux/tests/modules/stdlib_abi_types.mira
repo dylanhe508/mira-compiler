@@ -1,0 +1,6 @@
+import std.runtime_probe;
+fn main() {
+    print(runtime_probe.sqrt_answer());
+    print(runtime_probe.text_answer());
+    print(runtime_probe.seed_then_answer());
+}

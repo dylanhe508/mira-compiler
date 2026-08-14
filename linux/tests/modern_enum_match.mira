@@ -1,0 +1,20 @@
+enum State {
+    Idle,
+    Running = 4,
+    Stopped
+}
+
+fn score(state: i64) -> i64 {
+    mut result = 0;
+    match (state) {
+        State.Idle: { result = 10; }
+        State.Running: { result = 40; }
+        State.Stopped: { result = 50; }
+        default: { result = -1; }
+    }
+    result
+}
+
+fn main() {
+    print(score(State.Idle) + score(State.Running) + score(State.Stopped));
+}

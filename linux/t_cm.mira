@@ -1,0 +1,6 @@
+fn main() {
+    let ch = channel(1);
+    send(ch, 42);
+    print(recv(ch));
+    close-channel(ch);
+}

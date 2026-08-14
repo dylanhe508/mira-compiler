@@ -1,0 +1,20 @@
+fn work(outer, inner) {
+    mut sum = 0;
+    mut i = 0;
+    while (i < outer) {
+        mut j = 0;
+        while (j < inner) {
+            sum = sum + i + j;
+            j = j + 1;
+        }
+        i = i + 1;
+    }
+    sum
+}
+fn main() {
+    mut start_time = clock-ns();
+    mut result = work(10000, 10000);
+    mut end_time = clock-ns();
+    print("result="); print(result);
+    print("elapsed_ns="); print(end_time - start_time);
+}

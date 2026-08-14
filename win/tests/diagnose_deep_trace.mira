@@ -1,0 +1,27 @@
+fn stage1(x, i) { if ((x & 1) == 0) { x / 3 + i * 7 } else { x * 5 - i } }
+fn stage2(x, i) { if ((x & 7) < 3) { x + i * 11 } else { x - i * 13 } }
+fn stage3(x, i) { mut d = (i & 127) + 3; x / d + x % d + i }
+fn stage4(x, i) { if ((i & 255) == 0) { x ^ (i * 65537) } else { x * 17 + 29 } }
+fn stage5(x, i) { stage4(stage3(stage2(stage1(x, i), i), i), i) }
+
+fn main() {
+    mut x = -9918273;
+    mut a = 1;
+    mut b = 2;
+    mut c = 3;
+    mut d = 4;
+    mut i = 1;
+    while (i <= 512) {
+        x = stage5(x, i);
+        if ((x & 15) == 0) { a = a + x; }
+        else if ((x & 15) < 5) { b = b - x; }
+        else if ((x & 15) < 11) { c = c ^ x; }
+        else { d = d + x * i; }
+        print(x);
+        print(a);
+        print(b);
+        print(c);
+        print(d);
+        i = i + 1;
+    }
+}

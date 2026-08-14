@@ -1,0 +1,20 @@
+fn observed(x) {
+    print(x);
+    x + 1
+}
+
+fn unsafe_choose(x) {
+    mut result = 0;
+    if (x < 1) {
+        result = observed(11);
+    } else {
+        result = observed(22);
+    }
+    result
+}
+
+fn main() {
+    mut a = unsafe_choose(0);
+    mut b = unsafe_choose(1);
+    print(a); print(b);
+}

@@ -1,0 +1,2 @@
+fn add3(a,b,c){a+b+c}
+fn main(){ print(add3(1,2,3)); }

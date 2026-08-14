@@ -1,0 +1,2 @@
+import internal as internal;
+fn main() { print(internal.answer()); }

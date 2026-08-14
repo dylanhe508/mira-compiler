@@ -1,0 +1,16 @@
+fn work(n) {
+    mut sum = 0;
+    mut i = 1;
+    while (i <= n) {
+        sum = sum + ((i * 17) % 1009) + (i / 1009);
+        i = i + 1;
+    }
+    sum
+}
+
+fn main() {
+    mut a = work(10);
+    mut b = work(20);
+    print(a);
+    print(b);
+}

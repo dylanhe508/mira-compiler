@@ -1,0 +1,18 @@
+fn work(n) {
+    mut x = 1;
+    mut sum = 0;
+    mut i = 0;
+    while (i < n) {
+        x = (x * 6364136223846793005) + 1;
+        sum = sum + x;
+        i = i + 1;
+    }
+    sum
+}
+fn main() {
+    mut start_time = clock-ns();
+    mut result = work(50000000);
+    mut end_time = clock-ns();
+    print("result="); print(result);
+    print("elapsed_ns="); print(end_time - start_time);
+}

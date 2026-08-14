@@ -1,0 +1,20 @@
+extern fn __mira_io_read() -> i64;
+extern fn __mira_io_input() -> ptr;
+extern fn __mira_io_newline();
+
+fn print(value) {
+    print(value);
+}
+
+fn println(value) {
+    print(value);
+    __mira_io_newline();
+}
+
+fn read_line() {
+    __mira_io_input()
+}
+
+fn read_int() {
+    __mira_io_read()
+}

@@ -1,0 +1,4 @@
+import left as left;
+fn main() {
+    print(left.missing());
+}

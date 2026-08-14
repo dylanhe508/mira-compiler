@@ -1,0 +1,1624 @@
+fn f0(x) {
+    mut a = x * 1 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f1(x) {
+    mut a = x * 2 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f2(x) {
+    mut a = x * 3 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f3(x) {
+    mut a = x * 4 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f4(x) {
+    mut a = x * 5 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f5(x) {
+    mut a = x * 6 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f6(x) {
+    mut a = x * 7 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f7(x) {
+    mut a = x * 8 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f8(x) {
+    mut a = x * 9 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f9(x) {
+    mut a = x * 10 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f10(x) {
+    mut a = x * 11 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f11(x) {
+    mut a = x * 12 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f12(x) {
+    mut a = x * 13 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f13(x) {
+    mut a = x * 14 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f14(x) {
+    mut a = x * 15 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f15(x) {
+    mut a = x * 16 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f16(x) {
+    mut a = x * 17 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f17(x) {
+    mut a = x * 18 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f18(x) {
+    mut a = x * 19 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f19(x) {
+    mut a = x * 20 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f20(x) {
+    mut a = x * 21 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f21(x) {
+    mut a = x * 22 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f22(x) {
+    mut a = x * 23 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f23(x) {
+    mut a = x * 24 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f24(x) {
+    mut a = x * 25 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f25(x) {
+    mut a = x * 26 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f26(x) {
+    mut a = x * 27 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f27(x) {
+    mut a = x * 28 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f28(x) {
+    mut a = x * 29 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f29(x) {
+    mut a = x * 30 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f30(x) {
+    mut a = x * 31 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f31(x) {
+    mut a = x * 32 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f32(x) {
+    mut a = x * 33 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f33(x) {
+    mut a = x * 34 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f34(x) {
+    mut a = x * 35 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f35(x) {
+    mut a = x * 36 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f36(x) {
+    mut a = x * 37 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f37(x) {
+    mut a = x * 38 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f38(x) {
+    mut a = x * 39 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f39(x) {
+    mut a = x * 40 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f40(x) {
+    mut a = x * 41 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f41(x) {
+    mut a = x * 42 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f42(x) {
+    mut a = x * 43 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f43(x) {
+    mut a = x * 44 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f44(x) {
+    mut a = x * 45 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f45(x) {
+    mut a = x * 46 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f46(x) {
+    mut a = x * 47 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f47(x) {
+    mut a = x * 48 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f48(x) {
+    mut a = x * 49 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f49(x) {
+    mut a = x * 50 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f50(x) {
+    mut a = x * 51 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f51(x) {
+    mut a = x * 52 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f52(x) {
+    mut a = x * 53 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f53(x) {
+    mut a = x * 54 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f54(x) {
+    mut a = x * 55 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f55(x) {
+    mut a = x * 56 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f56(x) {
+    mut a = x * 57 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f57(x) {
+    mut a = x * 58 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f58(x) {
+    mut a = x * 59 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f59(x) {
+    mut a = x * 60 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f60(x) {
+    mut a = x * 61 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f61(x) {
+    mut a = x * 62 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f62(x) {
+    mut a = x * 63 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f63(x) {
+    mut a = x * 64 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f64(x) {
+    mut a = x * 65 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f65(x) {
+    mut a = x * 66 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f66(x) {
+    mut a = x * 67 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f67(x) {
+    mut a = x * 68 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f68(x) {
+    mut a = x * 69 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f69(x) {
+    mut a = x * 70 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f70(x) {
+    mut a = x * 71 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f71(x) {
+    mut a = x * 72 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f72(x) {
+    mut a = x * 73 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f73(x) {
+    mut a = x * 74 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f74(x) {
+    mut a = x * 75 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f75(x) {
+    mut a = x * 76 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f76(x) {
+    mut a = x * 77 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f77(x) {
+    mut a = x * 78 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f78(x) {
+    mut a = x * 79 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f79(x) {
+    mut a = x * 80 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f80(x) {
+    mut a = x * 81 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f81(x) {
+    mut a = x * 82 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f82(x) {
+    mut a = x * 83 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f83(x) {
+    mut a = x * 84 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f84(x) {
+    mut a = x * 85 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f85(x) {
+    mut a = x * 86 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f86(x) {
+    mut a = x * 87 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f87(x) {
+    mut a = x * 88 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f88(x) {
+    mut a = x * 89 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f89(x) {
+    mut a = x * 90 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f90(x) {
+    mut a = x * 91 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f91(x) {
+    mut a = x * 92 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f92(x) {
+    mut a = x * 93 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f93(x) {
+    mut a = x * 94 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f94(x) {
+    mut a = x * 95 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f95(x) {
+    mut a = x * 96 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f96(x) {
+    mut a = x * 97 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f97(x) {
+    mut a = x * 98 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f98(x) {
+    mut a = x * 99 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f99(x) {
+    mut a = x * 100 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f100(x) {
+    mut a = x * 101 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f101(x) {
+    mut a = x * 102 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f102(x) {
+    mut a = x * 103 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f103(x) {
+    mut a = x * 104 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f104(x) {
+    mut a = x * 105 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f105(x) {
+    mut a = x * 106 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f106(x) {
+    mut a = x * 107 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f107(x) {
+    mut a = x * 108 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f108(x) {
+    mut a = x * 109 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f109(x) {
+    mut a = x * 110 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f110(x) {
+    mut a = x * 111 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f111(x) {
+    mut a = x * 112 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f112(x) {
+    mut a = x * 113 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f113(x) {
+    mut a = x * 114 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f114(x) {
+    mut a = x * 115 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f115(x) {
+    mut a = x * 116 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f116(x) {
+    mut a = x * 117 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f117(x) {
+    mut a = x * 118 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f118(x) {
+    mut a = x * 119 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f119(x) {
+    mut a = x * 120 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f120(x) {
+    mut a = x * 121 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f121(x) {
+    mut a = x * 122 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f122(x) {
+    mut a = x * 123 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f123(x) {
+    mut a = x * 124 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f124(x) {
+    mut a = x * 125 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f125(x) {
+    mut a = x * 126 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f126(x) {
+    mut a = x * 127 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f127(x) {
+    mut a = x * 128 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f128(x) {
+    mut a = x * 129 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f129(x) {
+    mut a = x * 130 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f130(x) {
+    mut a = x * 131 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f131(x) {
+    mut a = x * 132 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f132(x) {
+    mut a = x * 133 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f133(x) {
+    mut a = x * 134 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f134(x) {
+    mut a = x * 135 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f135(x) {
+    mut a = x * 136 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f136(x) {
+    mut a = x * 137 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f137(x) {
+    mut a = x * 138 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f138(x) {
+    mut a = x * 139 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f139(x) {
+    mut a = x * 140 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f140(x) {
+    mut a = x * 141 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f141(x) {
+    mut a = x * 142 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f142(x) {
+    mut a = x * 143 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f143(x) {
+    mut a = x * 144 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f144(x) {
+    mut a = x * 145 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f145(x) {
+    mut a = x * 146 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f146(x) {
+    mut a = x * 147 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f147(x) {
+    mut a = x * 148 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f148(x) {
+    mut a = x * 149 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f149(x) {
+    mut a = x * 150 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f150(x) {
+    mut a = x * 151 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f151(x) {
+    mut a = x * 152 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f152(x) {
+    mut a = x * 153 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f153(x) {
+    mut a = x * 154 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f154(x) {
+    mut a = x * 155 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f155(x) {
+    mut a = x * 156 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f156(x) {
+    mut a = x * 157 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f157(x) {
+    mut a = x * 158 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f158(x) {
+    mut a = x * 159 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f159(x) {
+    mut a = x * 160 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f160(x) {
+    mut a = x * 161 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f161(x) {
+    mut a = x * 162 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f162(x) {
+    mut a = x * 163 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f163(x) {
+    mut a = x * 164 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f164(x) {
+    mut a = x * 165 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f165(x) {
+    mut a = x * 166 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f166(x) {
+    mut a = x * 167 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f167(x) {
+    mut a = x * 168 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f168(x) {
+    mut a = x * 169 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f169(x) {
+    mut a = x * 170 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f170(x) {
+    mut a = x * 171 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f171(x) {
+    mut a = x * 172 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f172(x) {
+    mut a = x * 173 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f173(x) {
+    mut a = x * 174 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f174(x) {
+    mut a = x * 175 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f175(x) {
+    mut a = x * 176 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f176(x) {
+    mut a = x * 177 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f177(x) {
+    mut a = x * 178 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f178(x) {
+    mut a = x * 179 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f179(x) {
+    mut a = x * 180 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f180(x) {
+    mut a = x * 181 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f181(x) {
+    mut a = x * 182 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f182(x) {
+    mut a = x * 183 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f183(x) {
+    mut a = x * 184 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f184(x) {
+    mut a = x * 185 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f185(x) {
+    mut a = x * 186 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f186(x) {
+    mut a = x * 187 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f187(x) {
+    mut a = x * 188 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f188(x) {
+    mut a = x * 189 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f189(x) {
+    mut a = x * 190 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f190(x) {
+    mut a = x * 191 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f191(x) {
+    mut a = x * 192 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f192(x) {
+    mut a = x * 193 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f193(x) {
+    mut a = x * 194 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f194(x) {
+    mut a = x * 195 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f195(x) {
+    mut a = x * 196 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f196(x) {
+    mut a = x * 197 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f197(x) {
+    mut a = x * 198 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f198(x) {
+    mut a = x * 199 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn f199(x) {
+    mut a = x * 200 + 7;
+    mut b = a * 3 + x;
+    mut c = 0;
+    mut i = 0;
+    while (i < 100) { c = c + b; i = i + 1; }
+    c & 9223372036854775807
+}
+fn main() {
+    mut total = 0;
+    total = total + f0(0) + f5(1);
+    total = total + f10(10) + f15(11);
+    total = total + f20(20) + f25(21);
+    total = total + f30(30) + f35(31);
+    total = total + f40(40) + f45(41);
+    total = total + f50(50) + f55(51);
+    total = total + f60(60) + f65(61);
+    total = total + f70(70) + f75(71);
+    total = total + f80(80) + f85(81);
+    total = total + f90(90) + f95(91);
+    total = total + f100(100) + f105(101);
+    total = total + f110(110) + f115(111);
+    total = total + f120(120) + f125(121);
+    total = total + f130(130) + f135(131);
+    total = total + f140(140) + f145(141);
+    total = total + f150(150) + f155(151);
+    total = total + f160(160) + f165(161);
+    total = total + f170(170) + f175(171);
+    total = total + f180(180) + f185(181);
+    total = total + f190(190) + f195(191);
+    print(total);
+}

@@ -1,0 +1,5 @@
+fn main() {
+    mut ptr = mem_alloc(8);
+    print(ptr :: i32);
+    mem_free(ptr);
+}

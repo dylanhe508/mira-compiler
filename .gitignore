@@ -1,0 +1,52 @@
+# ===== Compiler / linker artifacts =====
+out/
+*.o
+*.obj
+*.exe
+*.pdb
+*.a
+*.exp
+*.map
+linux/mira
+
+# ===== Regression / perf test scratch dirs =====
+bench/regress_*/
+bench/perf_*/
+bench/hoist_*/
+bench/ref_*.exe
+verify-*/
+compile-time-*/
+tests/extreme_apps/out/
+
+# ===== Fuzz generated cases (artifacts, kept on-site for debugging) =====
+bench/fuzz_work/fuzz_*/
+bench/fuzz_work/__pycache__/
+__pycache__/
+*.pyc
+
+# ===== Temp / backup / output files =====
+*.log
+*.bak
+*.bak*
+*.tmp
+regress_*.txt
+fulltest_*.txt
+out.ir
+-o
+core
+
+# ===== Release packages =====
+dist/
+
+# ===== Cross-platform system files =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== Editors =====
+.vscode/
+.idea/
+*.swp
+
+# ===== Local Git worktrees =====
+.worktrees/

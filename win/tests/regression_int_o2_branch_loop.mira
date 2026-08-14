@@ -1,0 +1,20 @@
+fn int_case(seed) {
+    mut x = seed;
+    mut i = 0;
+    while (i < ((seed & 15) + 1)) {
+        x = ((x * 6364136223846793005 + 1442695040888963407) & 9223372036854775807);
+        if ((x & 3) == 0) {
+            x = x + seed * 17 + i;
+        } else if ((x & 3) == 1) {
+            x = x ^ (seed * 31 + i * 7);
+        } else {
+            x = x - ((seed & 255) + i);
+        }
+        i = i + 1;
+    }
+    x & 2147483647
+}
+
+fn main() {
+    print(int_case(12346));
+}

@@ -1,0 +1,53 @@
+fn mix_a(x, i) {
+    mut d = (i & 31) + 3;
+    mut q = x / d;
+    mut r = x % d;
+    (q * 17 + r * 13) ^ (i * 65537)
+}
+
+fn mix_b(x, i) {
+    mut d = (i & 15) + 5;
+    if ((x & 7) < 3) {
+        (x * 5 + i * 11) ^ (x / d)
+    } else {
+        (x * 9 - i * 7) + (x % d)
+    }
+}
+
+fn run(seed, n) {
+    mut x = seed;
+    mut a = 1;
+    mut b = 3;
+    mut c = 7;
+    mut d = 11;
+    mut i = 1;
+    while (i <= n) {
+        x = x * 2862933555777941757 + 3037000493;
+        x = mix_b(mix_a(x, i), i);
+        if ((x & 15) == 0) {
+            a = a + x;
+        } else if ((x & 15) < 5) {
+            b = b - x;
+        } else if ((x & 15) < 11) {
+            c = c ^ x;
+        } else {
+            d = d + x * i;
+        }
+        if ((i & 63) == 0) {
+            a = (a ^ d) + b;
+            b = (b * 33) ^ c;
+            c = c + d * 17;
+            d = d ^ a;
+        }
+        i = i + 1;
+    }
+    x + a * 3 + b * 5 + c * 7 + d * 11
+}
+
+fn main() {
+    print(run(88172645463325252, 1));
+    print(run(-9918273, 31));
+    print(run(123456789, 257));
+    print(run(-700000000000000001, 4099));
+    print(run(17, 20003));
+}

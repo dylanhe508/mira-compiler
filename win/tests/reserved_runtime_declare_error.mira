@@ -1,0 +1,2 @@
+extern fn __mira_string_length(value: i64) -> i64;
+fn main() { print(0); }

@@ -1,0 +1,12 @@
+fn main() {
+    mut ptr = mem_alloc(24);
+    ptr :: i64 = 41;
+    mut first = ptr :: i64;
+    (ptr + 8) :: i64 = first + 1;
+    (ptr + 16) :: u8 = 255;
+    print(ptr :: i64);
+    print((ptr + 8) :: i64);
+    print(ptr :: i64 + (ptr + 8) :: i64);
+    print((ptr + 16) :: u8);
+    mem_free(ptr);
+}

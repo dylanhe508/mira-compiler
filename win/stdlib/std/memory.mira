@@ -1,0 +1,41 @@
+extern fn __mira_memory_allocate(size: i64) -> ptr;
+extern fn __mira_memory_free(address: ptr);
+extern fn __mira_memory_move(destination: ptr, source: ptr, size: i64);
+extern fn __mira_memory_erase(address: ptr, size: i64);
+extern fn __mira_memory_dump(address: ptr, size: i64);
+
+fn allocate(size) {
+    __mira_memory_allocate(size)
+}
+
+fn free(address) {
+    __mira_memory_free(address);
+}
+
+fn copy(destination, source, size) {
+    __mira_memory_move(destination, source, size);
+}
+
+fn zero(address, size) {
+    __mira_memory_erase(address, size);
+}
+
+fn load_i64(address) {
+    return address :: i64;
+}
+
+fn store_i64(address, value) {
+    address :: i64 = value;
+}
+
+fn load_u8(address) {
+    return address :: u8;
+}
+
+fn store_u8(address, value) {
+    address :: u8 = value;
+}
+
+fn dump(address, size) {
+    __mira_memory_dump(address, size);
+}

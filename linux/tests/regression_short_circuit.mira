@@ -1,0 +1,63 @@
+fn mark(counter, value) {
+    counter :: i64 = counter :: i64 + 1;
+    value
+}
+
+fn add(a, b) {
+    a + b
+}
+
+fn main() {
+    mut counter = mem_alloc(8);
+    counter :: i64 = 0;
+
+    mut a = 0 && mark(counter, 5);
+    print(a);
+    print(counter :: i64);
+
+    mut b = 1 || mark(counter, 5);
+    print(b);
+    print(counter :: i64);
+
+    mut c = 1 && mark(counter, 5);
+    print(c);
+    print(counter :: i64);
+
+    mut d = 0 || mark(counter, 7);
+    print(d);
+    print(counter :: i64);
+
+    mut e = 1 || 0 && mark(counter, 9);
+    print(e);
+    print(counter :: i64);
+
+    mut f = 0 || 1 && mark(counter, 11);
+    print(f);
+    print(counter :: i64);
+
+    if (0 && mark(counter, 13)) {
+        print(99);
+    } else {
+        print(0);
+    }
+    if (1 || mark(counter, 15)) {
+        print(1);
+    }
+    print(counter :: i64);
+
+    print(0 && mark(counter, 17));
+    print(counter :: i64);
+    print(1 || mark(counter, 19));
+    print(counter :: i64);
+    print(1 && mark(counter, 21));
+    print(counter :: i64);
+    print(add(0 && mark(counter, 23), 1 || mark(counter, 25)));
+    print(counter :: i64);
+
+    print((0 && mark(counter, 27)) || (1 && mark(counter, 29)));
+    print(counter :: i64);
+    print((1 || mark(counter, 31)) && (0 || mark(counter, 33)));
+    print(counter :: i64);
+
+    mem_free(counter);
+}

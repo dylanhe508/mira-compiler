@@ -1,0 +1,21 @@
+main: {
+  p: 134217728 allocate
+  start-write: clock-ns
+  0 16777216 for { i dup 8 * p @ + ! }
+  0 16777216 for { i dup 8 * p @ + ! }
+  0 16777216 for { i dup 8 * p @ + ! }
+  0 16777216 for { i dup 8 * p @ + ! }
+  end-write: clock-ns
+
+  sum: 0
+  start-read: clock-ns
+  0 16777216 for { i 8 * p @ + @ sum @ + sum ! }
+  0 16777216 for { i 8 * p @ + @ sum @ + sum ! }
+  0 16777216 for { i 8 * p @ + @ sum @ + sum ! }
+  0 16777216 for { i 8 * p @ + @ sum @ + sum ! }
+  end-read: clock-ns
+
+  sum @ print
+  end-write @ start-write @ - print
+  end-read @ start-read @ - print
+}

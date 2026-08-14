@@ -1,0 +1,4 @@
+fn main() {
+    let t = go([] { });
+    join-task(t);
+}

@@ -1,0 +1,14 @@
+fn main() {
+    mut value: i64 = 10;
+    value += 5;
+    value *= 3;
+    value -= 9;
+    value /= 4;
+    value %= 7;
+    value |= 8;
+    value &= 11;
+    value ^= 3;
+    value++;
+    value--;
+    print(value);
+}

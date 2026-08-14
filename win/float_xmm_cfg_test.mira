@@ -1,0 +1,24 @@
+fn branch_float(n) {
+    mut x = 1.25;
+    mut i = 0;
+    while (i < n) {
+        if ((i & 1) == 0) {
+            x = x + 0.5;
+        } else {
+            x = x * 1.25;
+        }
+        i = i + 1;
+    }
+    x
+}
+
+fn across_call() {
+    mut x = 3.5;
+    mut ignored = clock-ns();
+    x + 0.25
+}
+
+fn main() {
+    print(branch_float(10));
+    print(across_call());
+}

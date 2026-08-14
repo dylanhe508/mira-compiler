@@ -1,0 +1,19 @@
+fn float_division_variable(n) {
+    mut x = 1.000001;
+    mut y = 1.00000001;
+    mut i = 0;
+    while (i < n) {
+        x = x / y + 0.00000003;
+        y = y + 0.000000000000001;
+        i = i + 1;
+    }
+    x
+}
+
+fn main() {
+    mut x = 1.000001;
+    mut y = 1.00000001;
+    x = x / y + 0.00000003;
+    print(x);
+    print(float_division_variable(20000000));
+}

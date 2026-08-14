@@ -1,0 +1,66 @@
+fn multi_return(x) {
+    if (x < 0) {
+        0 - x * 3 + 7
+    } else {
+        if (x == 0) {
+            19
+        } else {
+            x * 5 - 11
+        }
+    }
+}
+
+fn hot_step(x, salt) {
+    mut hot_mixed = (x * 6364136223846793005 + salt + 1) & 2147483647;
+    if ((salt & 1) == 0) {
+        (hot_mixed * 1442695040888963407 + 33) & 2147483647
+    } else {
+        (hot_mixed * 2862933555777941757 + 3037000493) & 2147483647
+    }
+}
+
+fn ssa_shape(x) {
+    hot_step(x, 1) + hot_step(x, 2)
+}
+
+fn pressure_call(x) {
+    mut pa = x + 1;
+    mut pb = x * 3 + 2;
+    mut pc = x * 5 + 3;
+    mut pd = x * 7 + 4;
+    mut pe = x * 11 + 5;
+    mut pf = x * 13 + 6;
+    mut pg = x * 17 + 7;
+    mut ph = x * 19 + 8;
+    mut pi = x * 23 + 9;
+    mut pj = x * 29 + 10;
+    mut pk = x * 31 + 11;
+    mut pl = x * 37 + 12;
+    mut pressure_called = hot_step(x, 99);
+    (pressure_called + pa * 3 + pb * 5 + pc * 7 + pd * 11 + pe * 13 + pf * 17 +
+        pg * 19 + ph * 23 + pi * 29 + pj * 31 + pk * 37 + pl * 41) & 2147483647
+}
+
+fn nested_outer(x) {
+    mut keep = (x * 97 + 31) & 2147483647;
+    mut nested = ssa_shape(x + 5);
+    mut pressure = pressure_call(x + 9);
+    mut branches = multi_return(0 - 5) + multi_return(0) + multi_return(9);
+    (keep + nested + pressure + branches) & 2147483647
+}
+
+fn call_storm(rounds) {
+    mut acc = 1;
+    mut i = 0;
+    while (i < rounds) {
+        acc = hot_step(acc, i);
+        i = i + 1;
+    }
+    acc
+}
+
+fn main() {
+    print(nested_outer(12345));
+    print(pressure_call(24680));
+    print(call_storm(4000000));
+}

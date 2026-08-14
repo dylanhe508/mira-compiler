@@ -1,0 +1,7 @@
+fn negate(x) {
+    -x
+}
+
+fn main() {
+    print(negate(84));
+}

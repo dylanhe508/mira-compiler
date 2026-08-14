@@ -1,0 +1,19 @@
+import std.memory as memory;
+
+fn main() {
+    mut source = memory.allocate(16);
+    mut destination = memory.allocate(16);
+    source :: i64 = 7;
+    (source + 8) :: i64 = 9;
+    memory.store_i64(source, 11);
+    memory.store_u8(source + 8, 13);
+    memory.copy(destination, source, 16);
+    print(memory.load_i64(destination));
+    print(memory.load_u8(destination + 8));
+    print(destination :: i64);
+    print((destination + 8) :: u8);
+    memory.zero(destination, 16);
+    print(memory.load_i64(destination));
+    memory.free(source);
+    memory.free(destination);
+}

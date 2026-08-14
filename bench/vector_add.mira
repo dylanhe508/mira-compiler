@@ -1,0 +1,29 @@
+fn add_arrays(dst, left, right, n) {
+    mut i = 0;
+    while (i < n) {
+        mut offset = i * 8;
+        mut value = (left + offset) :: i64 + (right + offset) :: i64;
+        (dst + offset) :: i64 = value;
+        i = i + 1;
+    }
+}
+fn main() {
+    mut n = 1048576;
+    mut left = mem_alloc(n * 8);
+    mut right = mem_alloc(n * 8);
+    mut dst = mem_alloc(n * 8);
+    mut i = 0;
+    while (i < n) {
+        (left + i * 8) :: i64 = i * 3 + 1;
+        (right + i * 8) :: i64 = i * 5 + 7;
+        i = i + 1;
+    }
+    mut round = 0;
+    mut start = clock-ns();
+    while (round < 64) { add_arrays(dst, left, right, n); round = round + 1; }
+    mut checksum = 0;
+    i = 0;
+    while (i < n) { checksum = checksum + (dst + i * 8) :: i64; i = i + 1; }
+    mut elapsed = clock-ns() - start;
+    print(checksum); print(elapsed);
+}

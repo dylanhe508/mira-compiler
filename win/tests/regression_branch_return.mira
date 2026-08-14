@@ -1,0 +1,35 @@
+fn classify(value) {
+    if (value < 0) {
+        return -1;
+    } else {
+        mut adjusted = value + 10;
+        adjusted
+    }
+}
+
+fn nested(value) {
+    if (value > 0) {
+        if (value > 10) {
+            return 100;
+        }
+    }
+    value + 1
+}
+
+fn choose(value) {
+    if (value == 0) {
+        return 7;
+    } else {
+        return 9;
+    }
+    99
+}
+
+fn main() {
+    print(classify(-5));
+    print(classify(5));
+    print(nested(20));
+    print(nested(3));
+    print(choose(0));
+    print(choose(1));
+}

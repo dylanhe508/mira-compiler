@@ -1,0 +1,9 @@
+Mira build command (Linux / GCC)
+
+Run from the source root:
+
+make -j
+
+Requirements:
+- Linux x86-64
+- GCC and GNU Make

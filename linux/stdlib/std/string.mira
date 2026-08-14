@@ -1,0 +1,50 @@
+extern fn __mira_string_length(text: ptr) -> i64;
+extern fn __mira_string_concat(left: ptr, right: ptr) -> ptr;
+extern fn __mira_string_equal(left: ptr, right: ptr) -> i64;
+extern fn __mira_string_contains(text: ptr, part: ptr) -> i64;
+extern fn __mira_string_find(text: ptr, part: ptr) -> i64;
+extern fn __mira_string_substring(text: ptr, start: i64, length: i64) -> ptr;
+extern fn __mira_string_trim(text: ptr) -> ptr;
+extern fn __mira_string_at(text: ptr, index: i64) -> i64;
+extern fn __mira_int_to_string(value: i64) -> ptr;
+extern fn __mira_string_to_int(text: ptr) -> i64;
+
+fn length(text) {
+    __mira_string_length(text)
+}
+
+fn concat(left, right) {
+    __mira_string_concat(left, right)
+}
+
+fn equal(left, right) {
+    __mira_string_equal(left, right)
+}
+
+fn contains(text, part) {
+    __mira_string_contains(text, part)
+}
+
+fn find(text, part) {
+    __mira_string_find(text, part)
+}
+
+fn slice(text, start, length) {
+    __mira_string_substring(text, start, length)
+}
+
+fn trim(text) {
+    __mira_string_trim(text)
+}
+
+fn at(text, index) {
+    __mira_string_at(text, index)
+}
+
+fn from_int(value) {
+    __mira_int_to_string(value)
+}
+
+fn to_int(text) {
+    __mira_string_to_int(text)
+}

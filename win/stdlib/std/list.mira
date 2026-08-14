@@ -1,0 +1,218 @@
+extern fn __mira_list_new(size: i64) -> ptr;
+extern fn __mira_list_length(values: ptr) -> i64;
+extern fn __mira_list_get(values: ptr, index: i64) -> i64;
+extern fn __mira_list_set(values: ptr, index: i64, value: i64);
+extern fn __mira_list_push(values: ptr, value: i64) -> ptr;
+extern fn __mira_list_pop(values: ptr) -> i64;
+extern fn __mira_list_free(values: ptr);
+extern fn __mira_error_throw(message: ptr);
+
+fn new() {
+    __mira_list_new(0)
+}
+
+fn length(values) {
+    __mira_list_length(values)
+}
+
+fn get(values, index) {
+    mut count = __mira_list_length(values);
+    if (index < 0) {
+        __mira_error_throw("list.get index out of range");
+    }
+    if (index >= count) {
+        __mira_error_throw("list.get index out of range");
+    }
+    __mira_list_get(values, index)
+}
+
+fn set(values, index, value) {
+    mut count = __mira_list_length(values);
+    if (index < 0) {
+        __mira_error_throw("list.set index out of range");
+    }
+    if (index >= count) {
+        __mira_error_throw("list.set index out of range");
+    }
+    __mira_list_set(values, index, value);
+}
+
+fn push(values, value) {
+    __mira_list_push(values, value)
+}
+
+fn first(values) {
+    if (__mira_list_length(values) == 0) {
+        __mira_error_throw("list.first requires a non-empty list");
+    }
+    __mira_list_get(values, 0)
+}
+
+fn last(values) {
+    mut count = __mira_list_length(values);
+    if (count == 0) {
+        __mira_error_throw("list.last requires a non-empty list");
+    }
+    __mira_list_get(values, count - 1)
+}
+
+fn pop(values) {
+    if (__mira_list_length(values) == 0) {
+        __mira_error_throw("list.pop requires a non-empty list");
+    }
+    __mira_list_pop(values)
+}
+
+fn insert(values, index, value) {
+    mut count = __mira_list_length(values);
+    if (index < 0) {
+        __mira_error_throw("list.insert index out of range");
+    }
+    if (index > count) {
+        __mira_error_throw("list.insert index out of range");
+    }
+    mut result = __mira_list_push(values, 0);
+    mut cursor = count;
+    while (cursor > index) {
+        __mira_list_set(result, cursor, __mira_list_get(result, cursor - 1));
+        cursor = cursor - 1;
+    }
+    __mira_list_set(result, index, value);
+    result
+}
+
+fn remove_at(values, index) {
+    mut removed = get(values, index);
+    mut count = __mira_list_length(values);
+    mut cursor = index;
+    while (cursor + 1 < count) {
+        __mira_list_set(values, cursor, __mira_list_get(values, cursor + 1));
+        cursor = cursor + 1;
+    }
+    mut discarded = __mira_list_pop(values);
+    removed
+}
+
+fn clear(values) {
+    while (__mira_list_length(values) > 0) {
+        mut discarded = __mira_list_pop(values);
+    }
+}
+
+fn swap_at(values, left, right) {
+    mut temporary = __mira_list_get(values, left);
+    __mira_list_set(values, left, __mira_list_get(values, right));
+    __mira_list_set(values, right, temporary);
+}
+
+fn sift_down(values, root, count) {
+    mut current = root;
+    while (current * 2 + 1 < count) {
+        mut child = current * 2 + 1;
+        if (child + 1 < count) {
+            if (__mira_list_get(values, child) < __mira_list_get(values, child + 1)) {
+                child = child + 1;
+            }
+        }
+        mut moved = 0;
+        if (__mira_list_get(values, current) < __mira_list_get(values, child)) {
+            swap_at(values, current, child);
+            current = child;
+            moved = 1;
+        }
+        if (moved == 0) {
+            current = count;
+        }
+    }
+}
+
+# In-place ascending heapsort, O(n log n) time and O(1) extra memory.
+fn sort(values) {
+    mut count = __mira_list_length(values);
+    mut root = count / 2 - 1;
+    while (root >= 0) {
+        sift_down(values, root, count);
+        root = root - 1;
+    }
+    mut end = count - 1;
+    while (end > 0) {
+        swap_at(values, 0, end);
+        sift_down(values, 0, end);
+        end = end - 1;
+    }
+}
+
+fn min(values) {
+    mut count = __mira_list_length(values);
+    if (count == 0) {
+        __mira_error_throw("list.min requires a non-empty list");
+    }
+    mut result = __mira_list_get(values, 0);
+    mut index = 1;
+    while (index < count) {
+        mut value = __mira_list_get(values, index);
+        if (value < result) {
+            result = value;
+        }
+        index = index + 1;
+    }
+    result
+}
+
+fn max(values) {
+    mut count = __mira_list_length(values);
+    if (count == 0) {
+        __mira_error_throw("list.max requires a non-empty list");
+    }
+    mut result = __mira_list_get(values, 0);
+    mut index = 1;
+    while (index < count) {
+        mut value = __mira_list_get(values, index);
+        if (value > result) {
+            result = value;
+        }
+        index = index + 1;
+    }
+    result
+}
+
+fn sum(values) {
+    mut result = 0;
+    mut index = 0;
+    mut count = __mira_list_length(values);
+    while (index < count) {
+        result = result + __mira_list_get(values, index);
+        index = index + 1;
+    }
+    result
+}
+
+fn index_of(values, expected) {
+    mut index = 0;
+    mut count = __mira_list_length(values);
+    while (index < count) {
+        if (__mira_list_get(values, index) == expected) {
+            return index;
+        }
+        index = index + 1;
+    }
+    0 - 1
+}
+
+fn contains(values, expected) {
+    index_of(values, expected) >= 0
+}
+
+fn reverse(values) {
+    mut left = 0;
+    mut right = __mira_list_length(values) - 1;
+    while (left < right) {
+        swap_at(values, left, right);
+        left = left + 1;
+        right = right - 1;
+    }
+}
+
+fn free(values) {
+    __mira_list_free(values);
+}

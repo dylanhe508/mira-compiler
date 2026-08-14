@@ -1,0 +1,29 @@
+fn analyze_orders(n) {
+    mut revenue = 0;
+    mut refunds = 0;
+    mut pending = 0;
+    mut score = 0;
+    mut i = 0;
+    while (i < n) {
+        if ((i & 3) == 0) {
+            revenue = revenue + (((i * 13 + 7) & 16383) + 100) * ((i & 7) + 1);
+            score = score + (((i * 13 + 7) & 16383) + 100) * ((i & 7) + 1) * (((i * 3 + 1) & 15) + 1) + ((i * 17 + 3) & 65535) + ((i * 29 + 5) & 4095);
+        } else if ((i & 3) == 1) {
+            refunds = refunds + (((i * 13 + 7) & 16383) + 100) * ((i & 7) + 1);
+        } else {
+            pending = pending + 1;
+        }
+        i = i + 1;
+    }
+    revenue + refunds + pending + score
+}
+
+fn main() {
+    mut start = clock-ns();
+    mut checksum = analyze_orders(5000000);
+    mut finish = clock-ns();
+    print("checksum=");
+    print(checksum);
+    print("elapsed_ns=");
+    print(finish - start);
+}

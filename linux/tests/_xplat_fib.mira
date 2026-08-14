@@ -1,0 +1,17 @@
+fn fib(n) {
+    if (n < 2) {
+        n
+    } else {
+        fib(n - 1) + fib(n - 2)
+    }
+}
+
+fn add3(a, b, c) {
+    a + b + c
+}
+
+fn main() {
+    mut r = fib(30);
+    mut s = add3(1, 2, 3);
+    print(r + s);
+}

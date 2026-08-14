@@ -1,0 +1,3 @@
+var gx = 5
+fn f() { gx = gx + 1 }
+fn main() { f() print(gx) }

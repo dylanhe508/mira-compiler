@@ -1,0 +1,5 @@
+import std.random as random;
+
+fn main() {
+    print(random.range(5, 5));
+}

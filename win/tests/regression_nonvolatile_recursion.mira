@@ -1,0 +1,30 @@
+fn multi_return(x) {
+    if (x < 0) {
+        0 - x * 3 + 7
+    } else {
+        if (x == 0) {
+            19
+        } else {
+            x * 5 - 11
+        }
+    }
+}
+
+fn recursive_keep(n, seed) {
+    if (n <= 0) {
+        seed & 2147483647
+    } else {
+        mut recursive_keep_value = (seed * 131 + n * 17 + 9) & 2147483647;
+        mut recursive_child = recursive_keep(n - 1,
+            (seed + n * 19 + 3) & 2147483647);
+        if ((n & 1) == 0) {
+            (recursive_keep_value + recursive_child + multi_return(n - 7)) & 2147483647
+        } else {
+            (recursive_keep_value * 3 + recursive_child + multi_return(7 - n)) & 2147483647
+        }
+    }
+}
+
+fn main() {
+    print(recursive_keep(18, 987654321));
+}

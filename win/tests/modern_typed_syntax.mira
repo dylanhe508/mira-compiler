@@ -1,0 +1,16 @@
+fn add(a: i64, b: i64) -> i64 {
+    a + b
+}
+
+fn main() {
+    const answer_base: i64 = 40
+    let base: i64 = answer_base;
+    mut value: i64 = add(base, 2);
+    if (value == 42) {
+        print(value);
+    } else if (value == 0) {
+        print(0);
+    } else {
+        print(-1);
+    }
+}

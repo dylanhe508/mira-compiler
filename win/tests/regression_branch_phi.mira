@@ -1,0 +1,5 @@
+fn choose(x, i) {
+    if ((x & 7) < 3) { x + i * 11 }
+    else { x - i * 13 }
+}
+fn main() { print(choose(-49591366, 1)); }

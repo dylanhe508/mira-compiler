@@ -1,0 +1,47 @@
+fn float_muladd(n) {
+    mut x = 1.000001;
+    mut i = 0;
+    while (i < n) {
+        x = x * 1.00000001 + 0.00000003;
+        i = i + 1;
+    }
+    x
+}
+
+fn float_div(n) {
+    mut x = 1.000001;
+    mut i = 0;
+    while (i < n) {
+        x = x / 1.00000001 + 0.00000003;
+        i = i + 1;
+    }
+    x
+}
+
+fn int_div_runtime(n) {
+    mut sum = 0;
+    mut i = 1;
+    while (i <= n) {
+        mut d = (i & 1023) + 3;
+        sum = sum + (i / d);
+        i = i + 1;
+    }
+    sum
+}
+
+fn main() {
+    mut t0 = clock-ns();
+    mut a = float_muladd(20000000);
+    mut t1 = clock-ns();
+    print(a); print(t1 - t0);
+
+    t0 = clock-ns();
+    mut b = float_div(20000000);
+    t1 = clock-ns();
+    print(b); print(t1 - t0);
+
+    t0 = clock-ns();
+    mut c = int_div_runtime(20000000);
+    t1 = clock-ns();
+    print(c); print(t1 - t0);
+}

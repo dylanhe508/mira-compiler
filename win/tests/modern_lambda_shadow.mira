@@ -1,0 +1,9 @@
+fn main() {
+    mut value = 10;
+    let task = go([] {
+        mut value = 20;
+        print(value);
+    });
+    join-task(task);
+    print(value);
+}

@@ -1,0 +1,26 @@
+fn continued_chain(x) {
+    x * 0 + x * 1 + x * -1 + x * 2 + x * -2 +
+    x * 8 + x * -8 + x * -4611686018427387904 + x * 3
+}
+
+fn continued_product(x) {
+    mut result = x *
+        17;
+    result = result +
+        x * -5;
+    result
+}
+
+fn separate_statements(x) {
+    mut result = x;
+    result = result + 2;
+    result = result * 3;
+    result
+}
+
+fn main() {
+    print(continued_chain(7));
+    print(continued_chain(-11));
+    print(continued_product(19));
+    print(separate_statements(5));
+}

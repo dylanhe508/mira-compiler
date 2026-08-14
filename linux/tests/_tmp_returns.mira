@@ -1,0 +1,15 @@
+fn multi_return(x) {
+    if (x < 0) {
+        return 0 - x * 3 + 7;
+    }
+    if (x == 0) {
+        return 19;
+    }
+    x * 5 - 11
+}
+
+fn main() {
+    print(multi_return(0 - 5));
+    print(multi_return(0));
+    print(multi_return(9));
+}

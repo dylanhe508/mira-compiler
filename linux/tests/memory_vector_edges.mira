@@ -1,0 +1,21 @@
+main: {
+  p: 136 allocate
+  0 17 for { i dup 8 * p @ + ! }
+  sum: 0
+  0 17 for { i 8 * p @ + @ sum @ + sum ! }
+  sum @ print
+
+  p @ 8 + p @ 64 move
+  sum2: 0
+  0 17 for { i 8 * p @ + @ sum2 @ + sum2 ! }
+  sum2 @ print
+
+  q: 40 allocate
+  0 5 for { i dup 8 * q @ + ! }
+  sum3: 0
+  0 5 for { i 8 * q @ + @ sum3 @ + sum3 ! }
+  sum3 @ print
+
+  p @ free
+  q @ free
+}

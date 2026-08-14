@@ -1,0 +1,23 @@
+extern fn __mira_random_next() -> i64;
+extern fn __mira_random_seed(seed: i64);
+extern fn __mira_random_range(minimum: i64, maximum: i64) -> i64;
+extern fn __mira_error_throw(message: ptr);
+
+fn seed(value) {
+    __mira_random_seed(value);
+}
+
+fn int() {
+    __mira_random_next()
+}
+
+fn range(minimum, maximum) {
+    if (maximum <= minimum) {
+        __mira_error_throw("random.range requires max > min");
+    }
+    __mira_random_range(minimum, maximum)
+}
+
+fn bool() {
+    __mira_random_range(0, 2)
+}

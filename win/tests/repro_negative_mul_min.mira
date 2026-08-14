@@ -1,0 +1,7 @@
+fn f(x) {
+    x * -1
+}
+
+fn main() {
+    print(f(7));
+}

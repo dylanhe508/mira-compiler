@@ -1,0 +1,4 @@
+import std.math as m;
+fn main() {
+    print(m.max(17, 23));
+}

@@ -1,0 +1,5 @@
+var g = 7;
+fn main() {
+    g = 9;
+    print(g);
+}
