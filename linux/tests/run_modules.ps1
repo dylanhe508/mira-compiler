@@ -38,8 +38,8 @@ function Expect-Compile-Error([string]$name, [string]$fragment) {
 }
 
 foreach ($level in 0..3) {
-    Compile-And-Run 'import_math' '42' "-O$level"
-    Compile-And-Run 'import_alias' '42' "-O$level"
+    Compile-And-Run 'import_math' "42`n100" "-O$level"
+    Compile-And-Run 'import_alias' '23' "-O$level"
     Compile-And-Run 'import_isolation' '42' "-O$level"
     Compile-And-Run 'import_internal' '42' "-O$level"
     Compile-And-Run 'stdlib_abi_types' "9`n12345`n77" "-O$level"
