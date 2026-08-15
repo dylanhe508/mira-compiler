@@ -151,7 +151,7 @@ Program *parser_parse(Compiler *c) {
 				if (!lexer_at(TOK_ID))
 					mira_error(comp->src, comp->filename, lexer_cur()->line, lexer_cur()->col,
 						1, "struct field type expected");
-				lexer_advance();
+				parse_declared_type(false);
 				if (lexer_at(TOK_COMMA)) lexer_advance();
 				else if (!lexer_at(TOK_NEWLINE) && !lexer_at(TOK_RBRACE))
 					mira_error(comp->src, comp->filename, lexer_cur()->line, lexer_cur()->col,

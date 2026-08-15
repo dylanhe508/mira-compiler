@@ -35,6 +35,9 @@ function Expect-Compile-Error([string]$name, [string]$fragment) {
 if ($Group -eq 'declarations') {
     Expect-Compile-Error 'unknown_parameter_type' "unknown type 'number'"
     Expect-Compile-Error 'unknown_local_type' "unknown type 'number'"
+    Expect-Compile-Error 'unknown_struct_field_type' "unknown type 'number'"
+    Expect-Compile-Error 'unknown_struct_field_unknown' "unknown type 'unknown'"
+    Expect-Compile-Error 'void_struct_field_type' "type 'void' is only valid as a function result"
 
     Push-Location $types
     try {
@@ -55,6 +58,14 @@ if ($Group -eq 'declarations') {
     if ($LASTEXITCODE -ne 0) { throw 'type metadata test build failed' }
     & $metadataExe | Out-Host
     if ($LASTEXITCODE -ne 0) { throw 'type metadata test failed' }
+
+    $freeMetadataExe = Join-Path $types 'program_free_type_metadata_test.exe'
+    & $Gcc -O0 "-I$root" (Join-Path $PSScriptRoot 'program_free_type_metadata_test.c') `
+        -o $freeMetadataExe
+    if ($LASTEXITCODE -ne 0) { throw 'program free metadata test build failed' }
+    & $freeMetadataExe
+    if ($LASTEXITCODE -ne 0) { throw "program free metadata test failed: $LASTEXITCODE" }
+    Write-Output 'PROGRAM FREE TYPE METADATA PASS'
 
     Write-Output 'GRADUAL TYPE DECLARATIONS PASS'
 }

@@ -1,0 +1,4 @@
+struct Bad {
+    value: number
+}
+fn main() { print(0); }

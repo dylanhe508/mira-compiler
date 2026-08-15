@@ -47,9 +47,13 @@ void program_free(Program *prog) {
 
 	if (prog->var_names) free(prog->var_names);
 	if (prog->var_lens) free(prog->var_lens);
+	if (prog->var_types) free(prog->var_types);
+	if (prog->var_type_explicit) free(prog->var_type_explicit);
 	
 	if (prog->const_names) free(prog->const_names);
 	if (prog->const_lens) free(prog->const_lens);
+	if (prog->const_types) free(prog->const_types);
+	if (prog->const_type_explicit) free(prog->const_type_explicit);
 	if (prog->const_ints) free(prog->const_ints);
 	if (prog->const_doubles) free(prog->const_doubles);
 	if (prog->const_strs) free(prog->const_strs);
