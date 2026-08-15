@@ -13,7 +13,6 @@ fn main() -> void {
     let sub_f: f64 = 8.0 - 2.0;
     let mul_f: f64 = 8.0 * 2.0;
     let div_f: f64 = 8.0 / 2.0;
-    let neg_f: f64 = 2.5 neg;
     let eq: bool = add == 10;
     let ne: bool = sub != 5;
     let lt: bool = rem < 2;
@@ -21,8 +20,9 @@ fn main() -> void {
     let le: bool = div <= 4;
     let ge: bool = add >= 10;
     let short_logic: bool = (eq && ne) || (lt && gt);
-    drop(add_f); drop(sub_f); drop(mul_f); drop(div_f); drop(neg_f);
-    drop(neg_i); drop(le); drop(ge);
+    drop(add_f); drop(sub_f); drop(mul_f); drop(div_f);
+    drop(le); drop(ge);
     drop(postfix_arithmetic());
+    print(neg_i);
     print(short_logic);
 }

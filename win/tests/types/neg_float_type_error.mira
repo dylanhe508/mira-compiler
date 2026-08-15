@@ -1,0 +1,2 @@
+fn bad() -> f64 { 2.5 neg }
+fn main() { print(bad()); }

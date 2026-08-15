@@ -161,7 +161,8 @@ if ($Group -eq 'expressions') {
     Expect-Compile-Error 'postfix_or_type_error' 'operator or: expected bool, got i64'
     Expect-Compile-Error 'postfix_xor_type_error' 'operator xor: expected bool, got i64'
     Expect-Compile-Error 'postfix_not_type_error' 'operator not: expected bool, got i64'
-    Expect-Compile-Error 'neg_string_type_error' 'operator neg: expected numeric type, got str'
+    Expect-Compile-Error 'neg_string_type_error' 'operator neg: expected i64, got str'
+    Expect-Compile-Error 'neg_float_type_error' 'operator neg: expected i64, got f64'
     Expect-Compile-Error 'while_one_type_error' 'condition: expected bool, got i64'
     Expect-Compile-Error 'while_zero_type_error' 'condition: expected bool, got i64'
     Expect-Compile-Error 'ordinary_if_shape_type_error' "function 'choose': expected bool, got i64"
@@ -176,7 +177,7 @@ if ($Group -eq 'expressions') {
             @{ Name = 'scalars_valid'; Expected = '7' },
             @{ Name = 'legacy_truthiness_valid'; Expected = '7' },
             @{ Name = 'postfix_bool_valid'; Expected = '-2' },
-            @{ Name = 'operator_matrix_valid'; Expected = '1' },
+            @{ Name = 'operator_matrix_valid'; Expected = "-5`n1" },
             @{ Name = 'while_true_valid'; Expected = '7' },
             @{ Name = 'legacy_while_one_valid'; Expected = '7' },
             @{ Name = 'dynamic_conditions_valid'; Expected = '2' }

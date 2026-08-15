@@ -653,10 +653,10 @@ static void checker_check_neg(MiraTypeChecker *checker, const IrNode *node) {
 	if (checker_value_has_type(value, MIRA_TYPE_VOID))
 		checker_void_value_error(checker, value);
 	if (checker->strict_context) {
-		MiraType invalid = checker_first_non_numeric(value);
-		if (invalid != MIRA_TYPE_UNKNOWN)
-			checker_operator_single_type_error(checker, node, value, invalid,
-				"numeric type");
+		MiraType mismatch = checker_first_mismatch(value, MIRA_TYPE_I64);
+		if (mismatch != MIRA_TYPE_UNKNOWN)
+			checker_operator_single_type_error(checker, node, value, mismatch,
+				"i64");
 	}
 	checker_push_value(checker, value);
 }
