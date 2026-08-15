@@ -1,0 +1,9 @@
+fn log(value: i64) -> void { print(value); }
+fn choose(flag: bool) -> i64 {
+    if (flag) {
+        1
+    } else {
+        log(2)
+    }
+}
+fn main() { print(choose(false)); }

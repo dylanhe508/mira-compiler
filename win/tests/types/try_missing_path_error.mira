@@ -1,0 +1,2 @@
+fn partial() -> i64 { try { return 1; } catch (error) { print(2); } }
+fn main() { print(partial()); }

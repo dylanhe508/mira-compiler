@@ -236,6 +236,7 @@ static IrNode *new_ir(IrKind k) {
 	o->line = lexer_cur()->line;
 	o->col = lexer_cur()->col;
 	o->source = comp->src;
+	o->source_module = comp->current_module;
 	if (lexer_cur()->start >= comp->src)
 		o->source_offset = (size_t)(lexer_cur()->start - comp->src);
 	if (comp->filename) {

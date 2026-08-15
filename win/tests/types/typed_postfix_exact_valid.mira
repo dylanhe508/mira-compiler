@@ -1,0 +1,2 @@
+fn sum(left: i64, right: i64) -> i64 { left right + }
+fn main() { 20 22 sum print }

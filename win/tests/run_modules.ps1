@@ -46,12 +46,15 @@ foreach ($level in 0..3) {
 }
 Write-Output 'MODULE NAMESPACE O0-O3 PASS'
 
+Compile-And-Run 'adjacent_calls_valid' '0' '-O0'
+
 Expect-Compile-Error 'unknown_alias_error' "unknown module alias 'missing'"
 Expect-Compile-Error 'unknown_member_error' "unknown module member 'left.missing'"
 Expect-Compile-Error 'type_error_import' "function 'type_error_dep.bad': expected str, got i64"
 Expect-Compile-Error 'arity_error_import' "function 'arity_error_dep.pair' expects 2 arguments, got 3"
 Expect-Compile-Error 'missing_result_import' "function 'missing_result_dep.missing': expected i64, got void"
 Expect-Compile-Error 'ambiguous_missing_import' "function 'ambiguous_missing_a.missing': expected i64, got void"
+Expect-Compile-Error 'adjacent_calls_error' "function 'adjacent_two.same' expects 2 arguments, got 1"
 
 Push-Location $moduleRoot
 try {
@@ -96,6 +99,15 @@ try {
     if ($ambiguousError -notmatch 'ambiguous_missing_a\.mira' -or
         $ambiguousError -match 'ambiguous_missing_b\.mira') {
         throw "ambiguous missing-result error has wrong provenance: $ambiguousError"
+    }
+
+    $ErrorActionPreference = 'Continue'
+    $adjacentError = (& $compiler 'adjacent_calls_error.mira' 2>&1) -join "`n"
+    $adjacentErrorExitCode = $LASTEXITCODE
+    $ErrorActionPreference = $savedPreference
+    if ($adjacentErrorExitCode -eq 0) { throw 'adjacent-call arity error unexpectedly compiled' }
+    if ($adjacentError -notmatch [regex]::Escape('Line 3, Column 32')) {
+        throw "adjacent-call arity error has wrong call location: $adjacentError"
     }
 } finally {
     $ErrorActionPreference = 'Stop'

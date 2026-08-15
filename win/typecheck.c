@@ -31,6 +31,10 @@ typedef struct {
 	Def *void_source;
 	const char *source;
 	const char *source_filename;
+	int origin_line[MIRA_TYPE_VOID + 1];
+	int origin_col[MIRA_TYPE_VOID + 1];
+	const char *origin_source[MIRA_TYPE_VOID + 1];
+	const char *origin_filename[MIRA_TYPE_VOID + 1];
 } MiraCheckedValue;
 
 typedef struct {
@@ -63,6 +67,8 @@ typedef struct {
 	int value_cap;
 	bool reachable;
 	MiraSourceScan **source_scans;
+	const char *last_call_source;
+	size_t last_call_close;
 } MiraTypeChecker;
 
 static bool word_is(const IrNode *node, const char *word) {
@@ -81,13 +87,21 @@ static void checker_push(MiraTypeChecker *checker, MiraType type, bool strict,
 		checker->value_cap = next_cap;
 	}
 	unsigned type_mask = strict && type != MIRA_TYPE_UNKNOWN ? 1u << type : 0;
-	checker->values[checker->value_count++] =
-		(MiraCheckedValue){
-			type, type_mask, strict,
-			origin ? origin->line : 1, origin ? origin->col : 1, NULL,
-			origin ? origin->source : NULL,
-			origin ? origin->source_filename : NULL
-		};
+	MiraCheckedValue value = {0};
+	value.type = type;
+	value.type_mask = type_mask;
+	value.strict = strict;
+	value.line = origin ? origin->line : 1;
+	value.col = origin ? origin->col : 1;
+	value.source = origin ? origin->source : NULL;
+	value.source_filename = origin ? origin->source_filename : NULL;
+	if (type_mask) {
+		value.origin_line[type] = value.line;
+		value.origin_col[type] = value.col;
+		value.origin_source[type] = value.source;
+		value.origin_filename[type] = value.source_filename;
+	}
+	checker->values[checker->value_count++] = value;
 }
 
 static void checker_push_void(MiraTypeChecker *checker, Def *callee,
@@ -98,7 +112,7 @@ static void checker_push_void(MiraTypeChecker *checker, Def *callee,
 
 static MiraCheckedValue checker_pop(MiraTypeChecker *checker) {
 	if (checker->value_count == 0)
-		return (MiraCheckedValue){MIRA_TYPE_UNKNOWN, 0, false, 1, 1, NULL, NULL, NULL};
+		return (MiraCheckedValue){.type = MIRA_TYPE_UNKNOWN, .line = 1, .col = 1};
 	return checker->values[--checker->value_count];
 }
 
@@ -110,6 +124,18 @@ static MiraType checker_first_mismatch(MiraCheckedValue value, MiraType expected
 	for (MiraType type = MIRA_TYPE_I64; type <= MIRA_TYPE_VOID; ++type)
 		if (type != expected && checker_value_has_type(value, type)) return type;
 	return MIRA_TYPE_UNKNOWN;
+}
+
+static MiraCheckedValue checker_value_origin(MiraCheckedValue value,
+	MiraType type) {
+	if (type > MIRA_TYPE_UNKNOWN && type <= MIRA_TYPE_VOID &&
+	    value.origin_line[type] > 0) {
+		value.line = value.origin_line[type];
+		value.col = value.origin_col[type];
+		value.source = value.origin_source[type];
+		value.source_filename = value.origin_filename[type];
+	}
+	return value;
 }
 
 static MiraSourceInfo *checker_def_source(Program *program, const Def *def) {
@@ -303,34 +329,71 @@ static void checker_source_position(MiraSourceScan *scan, size_t offset,
 	*col = (int)(offset - scan->line_starts[low]) + 1;
 }
 
-static bool checker_annotate_parenthesized_call(MiraTypeChecker *checker,
-	IrNode *node) {
-	if (!node || node->kind != IR_WORD || node->u.word.has_call_arity ||
-	    !node->source || node->source_offset == 0)
-		return false;
-	const char *source = node->source;
-	MiraSourceScan *scan = checker_source_scan(checker, source);
-	bool use_current_close = false;
-retry_close_candidate:;
-	size_t cursor = node->source_offset + (use_current_close ? 1u : 0u);
-	/* Shunting-yard eval() creates the call node while its ')' token is still
-	 * current; recursive modern calls create it immediately after consuming
-	 * ')'.  Try both close-token positions and validate the source callee. */
-	while (cursor > 0 && isspace((unsigned char)source[cursor - 1])) cursor--;
-	if (cursor == 0 || source[cursor - 1] != ')') {
-		if (!use_current_close && source[node->source_offset] == ')') {
-			use_current_close = true;
-			goto retry_close_candidate;
+static bool checker_text_equal(const char *left, size_t left_len,
+	const char *right, size_t right_len) {
+	if (left_len != right_len) return false;
+	for (size_t i = 0; i < left_len; ++i) {
+		char a = left[i] == '-' ? '_' : left[i];
+		char b = right[i] == '-' ? '_' : right[i];
+		if (a != b) return false;
+	}
+	return true;
+}
+
+static bool checker_source_callee_matches(MiraTypeChecker *checker,
+	const IrNode *node, const char *source_name, size_t source_name_len) {
+	const char *dot = memchr(source_name, '.', source_name_len);
+	if (dot) {
+		size_t alias_len = (size_t)(dot - source_name);
+		for (size_t i = 0; i < checker->compiler->modules.import_count; ++i) {
+			ModuleImport *import = &checker->compiler->modules.imports[i];
+			if (import->owner != node->source_module ||
+			    import->alias_len != alias_len ||
+			    memcmp(import->alias, source_name, alias_len) != 0)
+				continue;
+			ModuleRecord *target = &checker->compiler->modules.modules[import->target];
+			const char *member = dot + 1;
+			size_t member_len = source_name_len - alias_len - 1;
+			if (node->u.word.len != target->path_len + 1 + member_len) return false;
+			return checker_text_equal(node->u.word.name, target->path_len,
+				target->path, target->path_len) &&
+				node->u.word.name[target->path_len] == '.' &&
+				checker_text_equal(node->u.word.name + target->path_len + 1,
+					member_len, member, member_len);
 		}
-		return false;
+		/* Canonical names and method symbols are already stored in full on IR. */
+		return checker_text_equal(node->u.word.name, node->u.word.len,
+			source_name, source_name_len);
 	}
 
-	size_t close = cursor - 1;
+	if (node->source_module != 0 &&
+	    node->source_module < checker->compiler->modules.module_count) {
+		ModuleRecord *module =
+			&checker->compiler->modules.modules[node->source_module];
+		if (node->u.word.len == module->path_len + 1 + source_name_len &&
+		    checker_text_equal(node->u.word.name, module->path_len,
+			    module->path, module->path_len) &&
+		    node->u.word.name[module->path_len] == '.' &&
+		    checker_text_equal(node->u.word.name + module->path_len + 1,
+			    source_name_len, source_name, source_name_len))
+			return true;
+	}
+	return checker_text_equal(node->u.word.name, node->u.word.len,
+		source_name, source_name_len);
+}
+
+typedef struct {
+	MiraParenBoundary *boundary;
+	size_t name_start;
+	size_t close;
+} MiraCallCandidate;
+
+static bool checker_call_candidate(MiraTypeChecker *checker, IrNode *node,
+	MiraSourceScan *scan, size_t close, MiraCallCandidate *candidate) {
 	MiraParenBoundary *boundary = checker_find_boundary(scan, close);
 	if (!boundary) return false;
-	size_t open = boundary->open;
-
-	size_t name_end = open;
+	const char *source = node->source;
+	size_t name_end = boundary->open;
 	while (name_end > 0 && isspace((unsigned char)source[name_end - 1])) name_end--;
 	size_t name_start = name_end;
 	while (name_start > 0) {
@@ -338,50 +401,59 @@ retry_close_candidate:;
 		if (!(isalnum(ch) || ch == '_' || ch == '-' || ch == '.')) break;
 		name_start--;
 	}
-	if (name_start == name_end) return false;
-	const char *source_member = source + name_start;
-	size_t source_member_len = name_end - name_start;
-	const char *source_dot = NULL;
-	for (size_t i = 0; i < source_member_len; ++i)
-		if (source_member[i] == '.') source_dot = source_member + i;
-	if (source_dot) {
-		source_member_len -= (size_t)(source_dot + 1 - source_member);
-		source_member = source_dot + 1;
+	if (name_start == name_end || !checker_source_callee_matches(checker, node,
+	    source + name_start, name_end - name_start)) return false;
+	*candidate = (MiraCallCandidate){boundary, name_start, close};
+	return true;
+}
+
+static bool checker_annotate_parenthesized_call(MiraTypeChecker *checker,
+	IrNode *node) {
+	if (!node || node->kind != IR_WORD || !node->source) return false;
+	if (node->u.word.has_call_arity) {
+		checker->last_call_source = node->source;
+		checker->last_call_close = node->u.word.call_close_offset;
+		return true;
 	}
-	const char *node_member = node->u.word.name;
-	size_t node_member_len = node->u.word.len;
-	const char *node_dot = NULL;
-	for (size_t i = 0; i < node_member_len; ++i)
-		if (node_member[i] == '.') node_dot = node_member + i;
-	if (node_dot) {
-		node_member_len -= (size_t)(node_dot + 1 - node_member);
-		node_member = node_dot + 1;
-	}
-	bool same_member = source_member_len == node_member_len;
-	for (size_t i = 0; same_member && i < source_member_len; ++i) {
-		char source_ch = source_member[i] == '-' ? '_' : source_member[i];
-		char node_ch = node_member[i] == '-' ? '_' : node_member[i];
-		if (source_ch != node_ch) same_member = false;
-	}
-	if (!same_member) {
-		if (!use_current_close && source[node->source_offset] == ')') {
-			use_current_close = true;
-			goto retry_close_candidate;
-		}
-		return false;
+	if (node->source_offset == 0) return false;
+	const char *source = node->source;
+	MiraSourceScan *scan = checker_source_scan(checker, source);
+	MiraCallCandidate previous = {0}, current = {0};
+	bool has_previous = false, has_current = false;
+	size_t cursor = node->source_offset;
+	while (cursor > 0 && isspace((unsigned char)source[cursor - 1])) cursor--;
+	if (cursor > 0 && source[cursor - 1] == ')')
+		has_previous = checker_call_candidate(checker, node, scan,
+			cursor - 1, &previous);
+	if (source[node->source_offset] == ')')
+		has_current = checker_call_candidate(checker, node, scan,
+			node->source_offset, &current);
+	if (!has_previous && !has_current) return false;
+
+	MiraCallCandidate *chosen = has_previous ? &previous : &current;
+	unsigned char mode = has_previous ? 1 : 2;
+	/* eval() emits an inner call before creating an adjacent outer call at its
+	 * current ')'. Recursive calls instead create the inner node after consuming
+	 * its own ')', so an unseen adjacent close belongs to the previous candidate. */
+	if (has_previous && has_current && checker->last_call_source == source &&
+	    checker->last_call_close == previous.close) {
+		chosen = &current;
+		mode = 2;
 	}
 
-	int line = 1, col = 1;
-	checker_source_position(scan, name_start, &line, &col);
+	checker_source_position(scan, chosen->name_start, &node->line, &node->col);
 	node->u.word.has_call_arity = 1;
-	node->u.word.call_argc = boundary->argc;
-	node->line = line;
-	node->col = col;
+	node->u.word.call_boundary_mode = mode;
+	node->u.word.call_argc = chosen->boundary->argc;
+	node->u.word.call_close_offset = chosen->close;
+	checker->last_call_source = source;
+	checker->last_call_close = chosen->close;
 	return true;
 }
 
 static void checker_void_value_error(MiraTypeChecker *checker,
 	MiraCheckedValue value) {
+	value = checker_value_origin(value, MIRA_TYPE_VOID);
 	Def *def = value.void_source;
 	mira_error(value.source ? value.source : checker->compiler->src,
 		value.source_filename ? value.source_filename : checker->compiler->filename,
@@ -496,11 +568,61 @@ static void checker_copy_state(MiraTypeChecker *target,
 static MiraCheckedValue checker_merge_value(MiraCheckedValue left,
 	MiraCheckedValue right) {
 	MiraCheckedValue merged = left;
+	unsigned left_mask = left.type_mask;
 	merged.type_mask = left.type_mask | right.type_mask;
 	merged.strict = merged.type_mask != 0;
 	if (left.type != right.type) merged.type = MIRA_TYPE_UNKNOWN;
 	if (!merged.void_source) merged.void_source = right.void_source;
+	for (MiraType type = MIRA_TYPE_I64; type <= MIRA_TYPE_VOID; ++type) {
+		if (!checker_value_has_type(right, type) || (left_mask & (1u << type)))
+			continue;
+		merged.origin_line[type] = right.origin_line[type];
+		merged.origin_col[type] = right.origin_col[type];
+		merged.origin_source[type] = right.origin_source[type];
+		merged.origin_filename[type] = right.origin_filename[type];
+	}
 	return merged;
+}
+
+static void checker_merge_states(MiraTypeChecker *target,
+	const MiraTypeChecker *left, const MiraTypeChecker *right) {
+	if (!left->reachable && !right->reachable) {
+		target->reachable = false;
+		target->value_count = 0;
+	} else if (!left->reachable) {
+		checker_copy_state(target, right);
+	} else if (!right->reachable) {
+		checker_copy_state(target, left);
+	} else {
+		int common_count = left->value_count < right->value_count ?
+			left->value_count : right->value_count;
+		checker_copy_state(target, left);
+		target->value_count = common_count;
+		for (int i = 0; i < common_count; ++i)
+			target->values[i] = checker_merge_value(
+				left->values[i], right->values[i]);
+	}
+}
+
+static void checker_accumulate_state(MiraTypeChecker *template,
+	MiraTypeChecker *accumulator, bool *has_accumulator,
+	MiraTypeChecker *branch) {
+	if (!*has_accumulator) {
+		*accumulator = *branch;
+		branch->values = NULL;
+		branch->value_count = 0;
+		branch->value_cap = 0;
+		*has_accumulator = true;
+		return;
+	}
+	MiraTypeChecker merged = *template;
+	merged.values = NULL;
+	merged.value_count = 0;
+	merged.value_cap = 0;
+	checker_merge_states(&merged, accumulator, branch);
+	free(accumulator->values);
+	free(branch->values);
+	*accumulator = merged;
 }
 
 static void checker_check_if(MiraTypeChecker *checker, IrNode *node) {
@@ -510,24 +632,56 @@ static void checker_check_if(MiraTypeChecker *checker, IrNode *node) {
 	checker_check_nodes(&then_state, node->u.iff.then_b);
 	if (node->u.iff.else_b) checker_check_nodes(&else_state, node->u.iff.else_b);
 
-	if (!then_state.reachable && !else_state.reachable) {
-		checker->reachable = false;
-		checker->value_count = 0;
-	} else if (!then_state.reachable) {
-		checker_copy_state(checker, &else_state);
-	} else if (!else_state.reachable) {
-		checker_copy_state(checker, &then_state);
-	} else {
-		int common_count = then_state.value_count < else_state.value_count ?
-			then_state.value_count : else_state.value_count;
-		checker_copy_state(checker, &then_state);
-		checker->value_count = common_count;
-		for (int i = 0; i < common_count; ++i)
-			checker->values[i] = checker_merge_value(
-				then_state.values[i], else_state.values[i]);
-	}
+	checker_merge_states(checker, &then_state, &else_state);
 	free(then_state.values);
 	free(else_state.values);
+}
+
+static void checker_check_switch(MiraTypeChecker *checker, IrNode *node) {
+	checker_check_value_context(checker, node->u.switch_.value);
+	MiraTypeChecker accumulator = {0};
+	bool has_accumulator = false;
+	for (IrNode *pattern = node->u.switch_.cases; pattern;) {
+		IrNode *body = pattern->next;
+		if (!body) break;
+		IrNode pattern_copy = *pattern;
+		pattern_copy.next = NULL;
+		checker_check_value_context(checker, &pattern_copy);
+		MiraTypeChecker branch = checker_clone(checker);
+		IrNode body_copy = *body;
+		body_copy.next = NULL;
+		checker_check_nodes(&branch, &body_copy);
+		IrNode *next_pattern = body->next;
+		checker_accumulate_state(checker, &accumulator,
+			&has_accumulator, &branch);
+		pattern = next_pattern;
+	}
+
+	MiraTypeChecker fallback = checker_clone(checker);
+	if (node->u.switch_.default_block) {
+		IrNode default_copy = *node->u.switch_.default_block;
+		default_copy.next = NULL;
+		checker_check_nodes(&fallback, &default_copy);
+	}
+	checker_accumulate_state(checker, &accumulator,
+		&has_accumulator, &fallback);
+	if (has_accumulator) checker_copy_state(checker, &accumulator);
+	free(accumulator.values);
+}
+
+static void checker_check_try(MiraTypeChecker *checker, IrNode *node) {
+	MiraTypeChecker body = checker_clone(checker);
+	checker_check_nodes(&body, node->u.try_block.body);
+	if (!node->u.try_block.catch_body) {
+		checker_copy_state(checker, &body);
+		free(body.values);
+		return;
+	}
+	MiraTypeChecker caught = checker_clone(checker);
+	checker_check_nodes(&caught, node->u.try_block.catch_body);
+	checker_merge_states(checker, &body, &caught);
+	free(body.values);
+	free(caught.values);
 }
 
 static void checker_check_call(MiraTypeChecker *checker, IrNode *node, Def *callee) {
@@ -565,6 +719,7 @@ static void checker_check_call(MiraTypeChecker *checker, IrNode *node, Def *call
 		MiraType expected = callee->param_types[param];
 		MiraType mismatch = checker_first_mismatch(actual, expected);
 		if (mismatch != MIRA_TYPE_UNKNOWN) {
+			actual = checker_value_origin(actual, mismatch);
 			mira_error(actual.source ? actual.source : checker->compiler->src,
 				actual.source_filename ? actual.source_filename : checker->compiler->filename,
 				actual.line, actual.col, 1,
@@ -599,16 +754,22 @@ static void checker_check_return(MiraTypeChecker *checker, IrNode *node) {
 			}
 		}
 	} else if (checker->value_count == 0) {
-		MiraCheckedValue value = {
-			MIRA_TYPE_VOID, 1u << MIRA_TYPE_VOID, true,
-			node->line, node->col, NULL, node->source, node->source_filename
+			MiraCheckedValue value = {
+			.type = MIRA_TYPE_VOID, .type_mask = 1u << MIRA_TYPE_VOID,
+			.strict = true, .line = node->line, .col = node->col,
+			.source = node->source, .source_filename = node->source_filename
 		};
+		value.origin_line[MIRA_TYPE_VOID] = value.line;
+		value.origin_col[MIRA_TYPE_VOID] = value.col;
+		value.origin_source[MIRA_TYPE_VOID] = value.source;
+		value.origin_filename[MIRA_TYPE_VOID] = value.source_filename;
 		checker_result_error(checker, value);
 	} else {
 		MiraCheckedValue value = checker_pop(checker);
 		if (checker_value_has_type(value, MIRA_TYPE_VOID)) checker_void_value_error(checker, value);
 		MiraType mismatch = checker_first_mismatch(value, checker->return_type);
 		if (mismatch != MIRA_TYPE_UNKNOWN) {
+			value = checker_value_origin(value, mismatch);
 			value.type = mismatch;
 			checker_result_error(checker, value);
 		}
@@ -702,10 +863,7 @@ static void checker_check_nodes(MiraTypeChecker *checker, IrNode *node) {
 			checker_check_if(checker, node);
 			break;
 		case IR_SWITCH:
-			checker_check_value_context(checker, node->u.switch_.value);
-			checker_check_nested(checker, node->u.switch_.cases);
-			checker_check_nested(checker, node->u.switch_.default_block);
-			checker_push(checker, MIRA_TYPE_UNKNOWN, false, node);
+			checker_check_switch(checker, node);
 			break;
 		case IR_FOR_CSTYLE:
 			checker_check_nested(checker, node->u.for_cstyle.init);
@@ -731,8 +889,7 @@ static void checker_check_nodes(MiraTypeChecker *checker, IrNode *node) {
 			checker_check_nested(checker, node->u.while_cond.body);
 			break;
 		case IR_TRY:
-			checker_check_nested(checker, node->u.try_block.body);
-			checker_check_nested(checker, node->u.try_block.catch_body);
+			checker_check_try(checker, node);
 			break;
 		case IR_LAMBDA:
 			checker_check_nested(checker, node->u.lambda.body);
@@ -766,19 +923,25 @@ static void checker_check_function(Compiler *compiler, Program *program,
 				checker_void_value_error(&checker, value);
 			MiraType mismatch = checker_first_mismatch(value, return_type);
 			if (mismatch != MIRA_TYPE_UNKNOWN) {
+				value = checker_value_origin(value, mismatch);
 				value.type = mismatch;
 				checker_result_error(&checker, value);
 			}
 		} else if (return_type != MIRA_TYPE_VOID) {
 			MiraSourceInfo *def_source = checker_def_source(program, def);
 			MiraCheckedValue missing = {
-				MIRA_TYPE_VOID, 1u << MIRA_TYPE_VOID, true,
-				def ? def->line : program->main_line,
-				def ? def->col : program->main_col,
-				NULL,
-				body ? body->source : def_source ? def_source->source : NULL,
-				body ? body->source_filename : def_source ? def_source->filename : NULL
+				.type = MIRA_TYPE_VOID, .type_mask = 1u << MIRA_TYPE_VOID,
+				.strict = true,
+				.line = def ? def->line : program->main_line,
+				.col = def ? def->col : program->main_col,
+				.source = body ? body->source : def_source ? def_source->source : NULL,
+				.source_filename = body ? body->source_filename :
+					def_source ? def_source->filename : NULL
 			};
+			missing.origin_line[MIRA_TYPE_VOID] = missing.line;
+			missing.origin_col[MIRA_TYPE_VOID] = missing.col;
+			missing.origin_source[MIRA_TYPE_VOID] = missing.source;
+			missing.origin_filename[MIRA_TYPE_VOID] = missing.source_filename;
 			checker_result_error(&checker, missing);
 		}
 	}

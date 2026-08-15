@@ -1,0 +1,2 @@
+fn total() -> i64 { try { return 1; } catch (error) { return 2; } }
+fn main() { print(total()); }

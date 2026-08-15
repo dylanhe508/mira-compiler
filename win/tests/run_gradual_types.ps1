@@ -87,12 +87,21 @@ if ($Group -eq 'calls') {
     Expect-Compile-Error 'branch_tail_type_error' "function 'choose': expected i64, got str"
     Expect-Compile-Error 'branch_single_arm_result_error' "function 'maybe': expected i64, got void"
     Expect-Compile-Error 'branch_partial_return_error' "function 'partial': expected i64, got void"
+    Expect-Compile-Error 'branch_else_type_origin_error' "function 'choose': expected i64, got str" 'Line 5,'
+    Expect-Compile-Error 'branch_else_void_origin_error' 'returns void and cannot be used as a value' 'Line 6, Column 9'
+    Expect-Compile-Error 'switch_no_result_error' "function 'choose': expected i64, got void"
+    Expect-Compile-Error 'switch_missing_path_error' "function 'choose': expected i64, got void"
+    Expect-Compile-Error 'switch_tail_type_error' "function 'choose': expected i64, got str"
+    Expect-Compile-Error 'switch_void_result_error' 'returns void and cannot be used as a value'
+    Expect-Compile-Error 'try_missing_path_error' "function 'partial': expected i64, got void"
+    Expect-Compile-Error 'try_tail_type_error' "function 'attempt': expected i64, got str"
     Expect-Compile-Error 'missing_result_error' "function 'missing': expected i64, got void"
     Expect-Compile-Error 'void_value_error' 'returns void and cannot be used as a value'
     Expect-Compile-Error 'return_type_error' "function 'label': expected str, got i64"
     Expect-Compile-Error 'call_arity_error' "expects 2 arguments, got 1"
     Expect-Compile-Error 'call_argument_type_error' "argument 1 of 'square': expected f64, got i64"
     Expect-Compile-Error 'extern_signature_error' "argument 1 of 'mira_abs': expected f64, got i64"
+    Expect-Compile-Error 'typed_postfix_insufficient_error' "function 'sum' expects 2 arguments, got 1"
 
     Push-Location $types
     try {
@@ -110,11 +119,31 @@ if ($Group -eq 'calls') {
         & $Mira -O0 'legacy_nested_valid.mira' | Out-Host
         if ($LASTEXITCODE -ne 0) { throw 'legacy_nested_valid O0 compile failed' }
 
+        foreach ($postfixCase in @(
+            @{ Name = 'typed_postfix_exact_valid'; Expected = '42' },
+            @{ Name = 'typed_postfix_prefix_value_valid'; Expected = '142' },
+            @{ Name = 'legacy_postfix_valid'; Expected = '7' }
+        )) {
+            & $Mira -O0 "$($postfixCase.Name).mira" | Out-Host
+            if ($LASTEXITCODE -ne 0) { throw "$($postfixCase.Name) O0 compile failed" }
+            $actual = ((& (Join-Path $types "$($postfixCase.Name).exe")) -join "`n").Trim()
+            if ($LASTEXITCODE -ne 0) { throw "$($postfixCase.Name) O0 run failed" }
+            if ($actual -ne $postfixCase.Expected) {
+                throw "$($postfixCase.Name) output '$actual', expected '$($postfixCase.Expected)'"
+            }
+        }
+
         & $Mira -O0 'branch_all_paths_return_valid.mira' | Out-Host
         if ($LASTEXITCODE -ne 0) { throw 'branch_all_paths_return_valid O0 compile failed' }
         $actual = ((& (Join-Path $types 'branch_all_paths_return_valid.exe')) -join "`n").Trim()
         if ($LASTEXITCODE -ne 0) { throw 'branch_all_paths_return_valid O0 run failed' }
         if ($actual -ne '1') { throw "branch_all_paths_return_valid output '$actual', expected '1'" }
+
+        & $Mira -O0 'try_all_paths_return_valid.mira' | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw 'try_all_paths_return_valid O0 compile failed' }
+        $actual = ((& (Join-Path $types 'try_all_paths_return_valid.exe')) -join "`n").Trim()
+        if ($LASTEXITCODE -ne 0) { throw 'try_all_paths_return_valid O0 run failed' }
+        if ($actual -ne '1') { throw "try_all_paths_return_valid output '$actual', expected '1'" }
     } finally {
         Pop-Location
     }

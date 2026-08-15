@@ -1,0 +1,2 @@
+fn choose(value: i64) -> i64 { switch (value) { 1: { print(1); } default: { print(2); } } }
+fn main() { print(choose(1)); }

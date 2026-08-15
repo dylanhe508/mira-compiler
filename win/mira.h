@@ -67,7 +67,9 @@ struct IrNode {
 			char *name;
 			size_t len;
 			unsigned char has_call_arity;
+			unsigned char call_boundary_mode;
 			int call_argc;
+			size_t call_close_offset;
 		} word;
 		int      var_slot;   /* IR_VAR锛氬彉閲忔Ы浣嶄笅??*/
 		int      const_slot; /* IR_CONST锛氬父閲忔Ы浣嶄笅??*/
@@ -88,6 +90,7 @@ struct IrNode {
 	const char *source;
 	const char *source_filename;
 	size_t source_offset;
+	uint32_t source_module;
 };
 
 typedef struct Def {

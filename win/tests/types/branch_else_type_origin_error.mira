@@ -1,0 +1,8 @@
+fn choose(flag: bool) -> i64 {
+    if (flag) {
+        1
+    } else {
+        "bad"
+    }
+}
+fn main() { print(choose(false)); }
