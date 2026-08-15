@@ -1,8 +1,8 @@
-/* parser/infix.c a鈧????-??鈧? Shunting-Yard 猫搂锟???? */
+/* Infix parser: shunting-yard implementation. */
 #include "parser.h"
 
-/* 杩愮畻绗︽爤缁熶竴 push:鍗曡?岃〃杈惧紡 token 鏁颁笉璁炬?讳笂闄?,arena 鍔ㄦ?佹墿瀹广??
- * IR_stack / IR_stack_len / IR_stack_cap 鐢变娇鐢ㄥ嚱鏁板０鏄?,comp 涓哄叏灞?瑙ｆ瀽涓婁笅鏂囥?? */
+/* Grow the per-expression operator stack dynamically. */
+/* IR_stack state is local; comp is the shared parser context. */
 #define PUSH_OP_STACK(tok) do { \
 	if (IR_stack_len >= IR_stack_cap) { \
 		int new_cap = IR_stack_cap ? IR_stack_cap * 2 : 128; \
@@ -65,7 +65,10 @@ static IrNode *parse_eval_block(Program *prog) {
 			if (node) push_out(node);
 		} else if (lexer_at(TOK_LPAREN)) {
 			paren_depth++;
-			PUSH_OP_STACK(*lexer_cur());
+			Token open = *lexer_cur();
+			open.has_call_arity = 1;
+			open.call_argc = lexer_at_peek(TOK_RPAREN) ? 0 : 1;
+			PUSH_OP_STACK(open);
 			lexer_advance();
 		} else if (lexer_at(TOK_RPAREN)) {
 			paren_depth--;
@@ -75,10 +78,14 @@ static IrNode *parse_eval_block(Program *prog) {
 			}
 
 			bool found_lparen = false;
+			Token open = {0};
+			size_t close_offset = lexer_cur()->start >= comp->src ?
+				(size_t)(lexer_cur()->start - comp->src) : 0;
 			while (IR_stack_len > 0) {
 				Token top = IR_stack[IR_stack_len - 1];
 				if (top.kind == TOK_LPAREN) {
 					found_lparen = true;
+					open = top;
 					IR_stack_len--; // Pop LPAREN
 					break;
 				}
@@ -104,6 +111,13 @@ static IrNode *parse_eval_block(Program *prog) {
 						IrNode *IR_node = new_ir(IR_WORD);
 						IR_node->u.word.name = top_op_str;
 						IR_node->u.word.len = top.len;
+						IR_node->u.word.has_call_arity = open.has_call_arity;
+						IR_node->u.word.call_boundary_mode = 3;
+						IR_node->u.word.call_receiver_count = top.call_receiver_count;
+						IR_node->u.word.call_argc = open.call_argc;
+						IR_node->u.word.call_close_offset = close_offset;
+						IR_node->line = top.line;
+						IR_node->col = top.col;
 						push_out(IR_node);
 						IR_stack_len--;
 					}
@@ -129,6 +143,11 @@ static IrNode *parse_eval_block(Program *prog) {
 				IR_node->u.word.name = top_op_str;
 				IR_node->u.word.len = top.len;
 				push_out(IR_node);
+			}
+			for (int i = IR_stack_len - 1; i >= 0; --i) {
+				if (IR_stack[i].kind != TOK_LPAREN) continue;
+				if (IR_stack[i].has_call_arity) IR_stack[i].call_argc++;
+				break;
 			}
 			lexer_advance();
 		} else if (lexer_at(TOK_ID)) {
@@ -219,6 +238,7 @@ static IrNode *parse_eval_block(Program *prog) {
 						push_out(fetch);
 					}
 					Token call = *t; call.start = method->qualified_name; call.len = method->qualified_name_len;
+					call.call_receiver_count = 1;
 					PUSH_OP_STACK(call);
 				} else {
 					Token call = *t;
@@ -295,11 +315,13 @@ static IrNode *parse_infix_nonlogical(Program *prog) {
 		/* Walk to the end of the chain (parse_one may return multi-node chains) */
 		while (out_queue_tail->next) out_queue_tail = out_queue_tail->next;
 	}
-	void push_recursive_call(Token call) {
+	void push_recursive_call(Token call, int receiver_count) {
+		int argc = 0;
 		lexer_advance();
 		lexer_expect(TOK_LPAREN);
 		if (!lexer_at(TOK_RPAREN)) {
 			for (;;) {
+				argc++;
 				IrNode *arg = parse_infix_line(prog);
 				if (!arg)
 					mira_error(comp->src, comp->filename, lexer_cur()->line,
@@ -309,6 +331,8 @@ static IrNode *parse_infix_nonlogical(Program *prog) {
 				lexer_advance();
 			}
 		}
+		size_t close_offset = lexer_cur()->start >= comp->src ?
+			(size_t)(lexer_cur()->start - comp->src) : 0;
 		lexer_expect(TOK_RPAREN);
 		char *call_name = arena_alloc(&comp->prog->ir_arena, call.len + 1);
 		memcpy(call_name, call.start, call.len);
@@ -316,6 +340,13 @@ static IrNode *parse_infix_nonlogical(Program *prog) {
 		IrNode *call_node = new_ir(IR_WORD);
 		call_node->u.word.name = call_name;
 		call_node->u.word.len = call.len;
+		call_node->u.word.has_call_arity = 1;
+		call_node->u.word.call_boundary_mode = 3;
+		call_node->u.word.call_receiver_count = (unsigned char)receiver_count;
+		call_node->u.word.call_argc = argc;
+		call_node->u.word.call_close_offset = close_offset;
+		call_node->line = call.line;
+		call_node->col = call.col;
 		push_out_line(call_node);
 	}
 
@@ -353,11 +384,11 @@ static IrNode *parse_infix_nonlogical(Program *prog) {
 			IrNode *node = parse_one(prog, true);
 			if (node) {
 				push_out_line(node);
-				/* 链尾是运算符(@/! 等后缀词)时不触发 postfix 链模式:
-				 * `left @ + 1` 中 @ 之后是 infix 运算符, 右操作数尚未读入,
-				 * 直接发射会让 + 排到 1 之前, SSA Builder 弹栈 underflow.
-				 * postfix 链(如 `1 2 +`、`sum @ i @ +`)由第二个操作数
-				 * (链尾为操作数节点)置位, 不受影响. */
+                /* A value followed by @/! enters postfix mode so later
+                 * operators are emitted in evaluation order. This keeps
+                 * `left @ + 1` from emitting + before its right operand,
+                 * while retaining ordinary postfix chains such as `1 2 +`
+                 * and `sum @ i @ +`. */
 				IrNode *tail = node;
 				while (tail->next) tail = tail->next;
 				if (expect_operand == 0 && tail->kind != IR_WORD) postfix_seen = 1;
@@ -617,7 +648,7 @@ static IrNode *parse_infix_nonlogical(Program *prog) {
 							mira_error(comp->src, comp->filename, t->line, t->col, 1,
 								"unknown module member '%.*s'", (int)t->len, t->start);
 						Token call = *t; call.start = qualified; call.len = qualified_len;
-							push_recursive_call(call);
+							push_recursive_call(call, 0);
 							expect_operand = 0; saw_operand = 1;
 						continue;
 					}
@@ -640,7 +671,7 @@ static IrNode *parse_infix_nonlogical(Program *prog) {
 						push_out_line(fetch);
 					}
 					Token call = *t; call.start = method->qualified_name; call.len = method->qualified_name_len;
-						push_recursive_call(call);
+						push_recursive_call(call, 1);
 						expect_operand = 0; saw_operand = 1;
 						continue;
 				} else {
@@ -658,7 +689,7 @@ static IrNode *parse_infix_nonlogical(Program *prog) {
 							}
 						}
 					}
-						push_recursive_call(call);
+						push_recursive_call(call, 0);
 					expect_operand = 0;
 					saw_operand = 1;
 					continue;
@@ -669,8 +700,8 @@ static IrNode *parse_infix_nonlogical(Program *prog) {
 					IrNode *node = parse_one(prog, true);
 					if (node) {
 						push_out_line(node);
-						/* 同字面量分支: 链尾为运算符(后缀词)时不置 postfix_seen,
-						 * 后续 infix 运算符(右操作数未读)走正常 Shunting-Yard 压栈 */
+                    /* Mirror the literal branch: adjacent non-word operands
+                     * select postfix mode instead of shunting-yard order. */
 						IrNode *tail = node;
 						while (tail->next) tail = tail->next;
 						if (expect_operand == 0 && tail->kind != IR_WORD) postfix_seen = 1;
@@ -679,7 +710,7 @@ static IrNode *parse_infix_nonlogical(Program *prog) {
 					}
 				}
 		} else {
-			break; /* Unknown token 鈥? end of expression */
+            break; /* Unknown token: end of expression. */
 		}
 	}
 	

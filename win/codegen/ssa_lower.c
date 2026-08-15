@@ -989,6 +989,20 @@ void ssa_lower_function(SsaFunction *func, IrBuffer *ir) {
 				else if (inst->IrNode == SSA_OP_FCMP_GE) setop = IR_SETAE;
 				ir_setcc(ir, setop, dst_reg);
 				ir_movzx_reg8(ir, dst_reg, dst_reg);
+				if (inst->IrNode == SSA_OP_FCMP_EQ ||
+					inst->IrNode == SSA_OP_FCMP_LT ||
+					inst->IrNode == SSA_OP_FCMP_LE) {
+					IrReg ordered = dst_reg == REG_R10 ? REG_R11 : REG_R10;
+					ir_setcc(ir, IR_SETNP, ordered);
+					ir_movzx_reg8(ir, ordered, ordered);
+					ir_and_reg_reg(ir, dst_reg, ordered);
+				} else if (inst->IrNode == SSA_OP_FCMP_NE) {
+					IrReg ordered = dst_reg == REG_R10 ? REG_R11 : REG_R10;
+					ir_setcc(ir, IR_SETNP, ordered);
+					ir_movzx_reg8(ir, ordered, ordered);
+					ir_xor_reg_imm(ir, ordered, 1);
+					ir_or_reg_reg(ir, dst_reg, ordered);
+				}
 				break;
 			}
 			case SSA_OP_SDIV: {

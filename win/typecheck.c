@@ -65,6 +65,8 @@ typedef struct {
 	MiraCheckedValue *values;
 	int value_count;
 	int value_cap;
+	MiraType *var_flow_types;
+	int var_flow_count;
 	bool reachable;
 	bool strict_context;
 	int pending_store_slot;
@@ -415,7 +417,7 @@ static bool checker_call_candidate(MiraTypeChecker *checker, IrNode *node,
 	size_t name_start = name_end;
 	while (name_start > 0) {
 		unsigned char ch = (unsigned char)source[name_start - 1];
-		if (!(isalnum(ch) || ch == '_' || ch == '-' || ch == '.')) break;
+		if (!(isalnum(ch) || ch == '_' || ch == '-' || ch == '.' || ch == '?')) break;
 		name_start--;
 	}
 	if (name_start == name_end || !checker_source_callee_matches(checker, node,
@@ -707,19 +709,23 @@ static void checker_check_neg(MiraTypeChecker *checker, const IrNode *node) {
 }
 
 static void checker_check_nodes(MiraTypeChecker *checker, IrNode *node);
+static MiraTypeChecker checker_clone(const MiraTypeChecker *source);
 
 static void checker_check_nested(MiraTypeChecker *parent, IrNode *node) {
-	MiraTypeChecker nested = *parent;
+	MiraTypeChecker nested = checker_clone(parent);
+	free(nested.values);
 	nested.values = NULL;
 	nested.value_count = 0;
 	nested.value_cap = 0;
 	nested.reachable = true;
 	checker_check_nodes(&nested, node);
 	free(nested.values);
+	free(nested.var_flow_types);
 }
 
 static void checker_check_value_context(MiraTypeChecker *parent, IrNode *node) {
-	MiraTypeChecker nested = *parent;
+	MiraTypeChecker nested = checker_clone(parent);
+	free(nested.values);
 	nested.values = NULL;
 	nested.value_count = 0;
 	nested.value_cap = 0;
@@ -729,6 +735,7 @@ static void checker_check_value_context(MiraTypeChecker *parent, IrNode *node) {
 		if (checker_value_has_type(nested.values[i], MIRA_TYPE_VOID))
 			checker_void_value_error(&nested, nested.values[i]);
 	free(nested.values);
+	free(nested.var_flow_types);
 }
 
 static MiraTypeChecker checker_clone(const MiraTypeChecker *source) {
@@ -740,6 +747,15 @@ static MiraTypeChecker checker_clone(const MiraTypeChecker *source) {
 		if (!clone.values) mira_error_simple(1, "out of memory in type checker");
 		memcpy(clone.values, source->values,
 			(size_t)source->value_count * sizeof(*clone.values));
+	}
+	clone.var_flow_types = NULL;
+	if (source->var_flow_count > 0) {
+		clone.var_flow_types = malloc((size_t)source->var_flow_count *
+			sizeof(*clone.var_flow_types));
+		if (!clone.var_flow_types)
+			mira_error_simple(1, "out of memory in type checker");
+		memcpy(clone.var_flow_types, source->var_flow_types,
+			(size_t)source->var_flow_count * sizeof(*clone.var_flow_types));
 	}
 	return clone;
 }
@@ -758,6 +774,10 @@ static void checker_copy_state(MiraTypeChecker *target,
 			(size_t)source->value_count * sizeof(*target->values));
 	target->value_count = source->value_count;
 	target->reachable = source->reachable;
+	if (target->var_flow_count == source->var_flow_count &&
+	    target->var_flow_count > 0)
+		memcpy(target->var_flow_types, source->var_flow_types,
+			(size_t)target->var_flow_count * sizeof(*target->var_flow_types));
 }
 
 static MiraCheckedValue checker_merge_value(MiraCheckedValue left,
@@ -798,6 +818,9 @@ static void checker_merge_states(MiraTypeChecker *target,
 		for (int i = 0; i < common_count; ++i)
 			target->values[i] = checker_merge_value(
 				left->values[i], right->values[i]);
+		for (int i = 0; i < target->var_flow_count; ++i)
+			if (left->var_flow_types[i] != right->var_flow_types[i])
+				target->var_flow_types[i] = MIRA_TYPE_UNKNOWN;
 	}
 }
 
@@ -809,16 +832,21 @@ static void checker_accumulate_state(MiraTypeChecker *template,
 		branch->values = NULL;
 		branch->value_count = 0;
 		branch->value_cap = 0;
+		branch->var_flow_types = NULL;
+		branch->var_flow_count = 0;
 		*has_accumulator = true;
 		return;
 	}
-	MiraTypeChecker merged = *template;
+	MiraTypeChecker merged = checker_clone(template);
+	free(merged.values);
 	merged.values = NULL;
 	merged.value_count = 0;
 	merged.value_cap = 0;
 	checker_merge_states(&merged, accumulator, branch);
 	free(accumulator->values);
+	free(accumulator->var_flow_types);
 	free(branch->values);
+	free(branch->var_flow_types);
 	*accumulator = merged;
 }
 
@@ -834,7 +862,8 @@ static void checker_condition_type_error(MiraTypeChecker *checker,
 }
 
 static void checker_check_condition(MiraTypeChecker *parent, IrNode *node) {
-	MiraTypeChecker nested = *parent;
+	MiraTypeChecker nested = checker_clone(parent);
+	free(nested.values);
 	nested.values = NULL;
 	nested.value_count = 0;
 	nested.value_cap = 0;
@@ -848,6 +877,7 @@ static void checker_check_condition(MiraTypeChecker *parent, IrNode *node) {
 		checker_condition_type_error(&nested,
 			nested.values[nested.value_count - 1]);
 	free(nested.values);
+	free(nested.var_flow_types);
 }
 
 static size_t checker_skip_source_space(const char *source, size_t cursor,
@@ -1047,7 +1077,9 @@ static void checker_check_if(MiraTypeChecker *checker, IrNode *node) {
 		result->strict = true;
 	}
 	free(then_state.values);
+	free(then_state.var_flow_types);
 	free(else_state.values);
+	free(else_state.var_flow_types);
 }
 
 static void checker_check_switch(MiraTypeChecker *checker, IrNode *node) {
@@ -1080,6 +1112,7 @@ static void checker_check_switch(MiraTypeChecker *checker, IrNode *node) {
 		&has_accumulator, &fallback);
 	if (has_accumulator) checker_copy_state(checker, &accumulator);
 	free(accumulator.values);
+	free(accumulator.var_flow_types);
 }
 
 static void checker_check_try(MiraTypeChecker *checker, IrNode *node) {
@@ -1088,27 +1121,35 @@ static void checker_check_try(MiraTypeChecker *checker, IrNode *node) {
 	if (!node->u.try_block.catch_body) {
 		checker_copy_state(checker, &body);
 		free(body.values);
+		free(body.var_flow_types);
 		return;
 	}
 	MiraTypeChecker caught = checker_clone(checker);
 	checker_check_nodes(&caught, node->u.try_block.catch_body);
 	checker_merge_states(checker, &body, &caught);
 	free(body.values);
+	free(body.var_flow_types);
 	free(caught.values);
+	free(caught.var_flow_types);
 }
 
 static void checker_check_call(MiraTypeChecker *checker, IrNode *node, Def *callee) {
 	bool typed = signature_is_typed(callee);
 	checker_annotate_parenthesized_call(checker, node);
-	int call_argc = node->u.word.has_call_arity ?
+	int receiver_count = node->u.word.has_call_arity ?
+		node->u.word.call_receiver_count : 0;
+	int explicit_argc = node->u.word.has_call_arity ?
 		node->u.word.call_argc : callee->param_count;
-	if (node->u.word.has_call_arity && call_argc != callee->param_count) {
+	int expected_explicit = callee->param_count - receiver_count;
+	if (expected_explicit < 0) expected_explicit = 0;
+	if (node->u.word.has_call_arity && explicit_argc != expected_explicit) {
 		mira_error(node->source ? node->source : checker->compiler->src,
 			node->source_filename ? node->source_filename : checker->compiler->filename,
 			node->line, node->col, 1,
 			"function '%.*s' expects %d arguments, got %d",
-			(int)callee->name_len, callee->name, callee->param_count, call_argc);
+			(int)callee->name_len, callee->name, expected_explicit, explicit_argc);
 	}
+	int call_argc = explicit_argc + receiver_count;
 	if (checker->value_count < call_argc) {
 		if (typed)
 			mira_error(node->source ? node->source : checker->compiler->src,
@@ -1162,6 +1203,7 @@ static void checker_check_return(MiraTypeChecker *checker, IrNode *node) {
 			MiraCheckedValue value = checker->values[checker->value_count - 1];
 			MiraType mismatch = checker_first_mismatch(value, MIRA_TYPE_VOID);
 			if (mismatch != MIRA_TYPE_UNKNOWN) {
+				value = checker_value_origin(value, mismatch);
 				value.type = mismatch;
 				checker_result_error(checker, value);
 			}
@@ -1223,10 +1265,11 @@ static void checker_check_nodes(MiraTypeChecker *checker, IrNode *node) {
 				int slot = node->u.var_slot;
 				MiraType type = MIRA_TYPE_UNKNOWN;
 				bool strict = false;
-				if (slot >= 0 && slot < checker->program->var_count &&
-				    checker->program->var_types[slot] != MIRA_TYPE_UNKNOWN) {
-					type = checker->program->var_types[slot];
+				if (slot >= 0 && slot < checker->program->var_count) {
 					strict = checker->program->var_type_explicit[slot] != 0;
+					if (strict) type = checker->program->var_types[slot];
+					else if (slot < checker->var_flow_count)
+						type = checker->var_flow_types[slot];
 				}
 				checker_push(checker, type, strict, node);
 			} else if (node->next && word_is(node->next, "!"))
@@ -1289,10 +1332,9 @@ static void checker_check_nodes(MiraTypeChecker *checker, IrNode *node) {
 									checker->program->var_names[slot], mira_type_name(expected),
 									mira_type_name(mismatch));
 							}
-						} else if (expected == MIRA_TYPE_UNKNOWN &&
-						           value.type != MIRA_TYPE_UNKNOWN &&
-						           value.type != MIRA_TYPE_VOID) {
-							checker->program->var_types[slot] = value.type;
+						} else if (slot < checker->var_flow_count) {
+							checker->var_flow_types[slot] =
+								value.type != MIRA_TYPE_VOID ? value.type : MIRA_TYPE_UNKNOWN;
 						}
 					}
 				}
@@ -1339,11 +1381,8 @@ static void checker_check_nodes(MiraTypeChecker *checker, IrNode *node) {
 			checker_check_nested(checker, node->u.each.body);
 			break;
 		case IR_WHILE_INF:
-			if (checker->strict_context) {
-				MiraCheckedValue condition;
-				if (checker_while_inf_literal(checker, node, &condition))
-					checker_condition_type_error(checker, condition);
-			}
+			if (node->u.while_inf.cond)
+				checker_check_condition(checker, node->u.while_inf.cond);
 			checker_check_nested(checker, node->u.while_inf.body);
 			break;
 		case IR_WHILE_COND:
@@ -1438,6 +1477,14 @@ static void checker_check_function(Compiler *compiler, Program *program,
 	checker.function_name_len = name_len;
 	checker.source_scans = source_scans;
 	checker.reachable = true;
+	checker.var_flow_count = program->var_count;
+	checker.var_flow_types = program->var_count > 0 ?
+		calloc((size_t)program->var_count, sizeof(*checker.var_flow_types)) : NULL;
+	if (program->var_count > 0 && !checker.var_flow_types)
+		mira_error_simple(1, "out of memory in type checker");
+	for (int i = 0; i < program->var_count; ++i)
+		if (program->var_type_explicit && program->var_type_explicit[i])
+			checker.var_flow_types[i] = program->var_types[i];
 	checker.strict_context = return_type_explicit ||
 		(def && signature_is_typed(def)) ||
 		checker_nodes_have_explicit_local(program, body);
@@ -1473,6 +1520,7 @@ static void checker_check_function(Compiler *compiler, Program *program,
 		}
 	}
 	free(checker.values);
+	free(checker.var_flow_types);
 }
 
 bool mira_type_from_name(const char *name, size_t len, MiraType *out) {
@@ -1537,12 +1585,25 @@ void mira_typecheck_program(Compiler *compiler, Program *program) {
 	for (int i = 0; i < program->const_count; ++i) {
 		if (!program->const_type_explicit || !program->const_type_explicit[i]) continue;
 		MiraType type = program->const_types[i];
+		IrNode *origin = program->const_origins ? program->const_origins[i] : NULL;
+		const char *source = origin && origin->source ? origin->source : compiler->src;
+		const char *filename = origin && origin->source_filename ?
+			origin->source_filename : compiler->filename;
+		int line = origin ? origin->line : 1;
+		int col = origin ? origin->col : 1;
 		if (type == MIRA_TYPE_UNKNOWN)
-			mira_error(compiler->src, compiler->filename, 1, 1, 1,
+			mira_error(source, filename, line, col, 1,
 				"unknown type 'unknown'");
 		if (type == MIRA_TYPE_VOID)
-			mira_error(compiler->src, compiler->filename, 1, 1, 1,
+			mira_error(source, filename, line, col, 1,
 				"type 'void' is only valid as a function result");
+		MiraType actual = program->const_kinds[i] == CONST_DOUBLE ? MIRA_TYPE_F64 :
+			program->const_kinds[i] == CONST_STR ? MIRA_TYPE_STR : MIRA_TYPE_I64;
+		if (type != actual)
+			mira_error(source, filename, line, col, 1,
+				"constant '%.*s': expected %s, got %s",
+				(int)program->const_lens[i], program->const_names[i],
+				mira_type_name(type), mira_type_name(actual));
 	}
 
 	for (int i = 0; i < program->var_count; ++i) {

@@ -200,6 +200,7 @@ static int prog_add_const(Program *prog, char *name, size_t len, ConstKind k, in
 		prog->const_lens = realloc(prog->const_lens, (size_t)prog->const_cap * sizeof(size_t));
 		prog->const_types = realloc(prog->const_types, (size_t)prog->const_cap * sizeof(MiraType));
 		prog->const_type_explicit = realloc(prog->const_type_explicit, (size_t)prog->const_cap);
+		prog->const_origins = realloc(prog->const_origins, (size_t)prog->const_cap * sizeof(IrNode *));
 		prog->const_kinds = realloc(prog->const_kinds, (size_t)prog->const_cap * sizeof(ConstKind));
 		prog->const_ints = realloc(prog->const_ints, (size_t)prog->const_cap * sizeof(int64_t));
 		prog->const_doubles = realloc(prog->const_doubles, (size_t)prog->const_cap * sizeof(double));
@@ -209,7 +210,15 @@ static int prog_add_const(Program *prog, char *name, size_t len, ConstKind k, in
 			(size_t)(prog->const_cap - prog->const_count) * sizeof(MiraType));
 		memset(prog->const_type_explicit + prog->const_count, 0,
 			(size_t)(prog->const_cap - prog->const_count));
+		memset(prog->const_origins + prog->const_count, 0,
+			(size_t)(prog->const_cap - prog->const_count) * sizeof(IrNode *));
 	}
+	IrNode *origin = NULL;
+	if ((k == CONST_INT && lexer_at(TOK_INT)) ||
+	    (k == CONST_DOUBLE && lexer_at(TOK_FLOAT)) ||
+	    (k == CONST_STR && lexer_at(TOK_STR)))
+		origin = new_ir(k == CONST_INT ? IR_INT :
+			k == CONST_DOUBLE ? IR_FLOAT : IR_STR);
 	int i = prog->const_count++;
 	prog->const_names[i] = name;
 	prog->const_lens[i] = len;
@@ -218,6 +227,7 @@ static int prog_add_const(Program *prog, char *name, size_t len, ConstKind k, in
 	prog->const_doubles[i] = vd;
 	prog->const_strs[i] = vs;
 	prog->const_str_lens[i] = vslen;
+	prog->const_origins[i] = origin;
 	return i;
 }
 

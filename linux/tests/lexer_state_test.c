@@ -1,7 +1,7 @@
 #include "../mira.h"
 
 int main(void) {
-    char source[] = "parent\nnext\n";
+    char source[] = "parent next";
     Compiler compiler = {0};
     compiler.src = source;
     compiler.filename = "<lexer-state-parent>";

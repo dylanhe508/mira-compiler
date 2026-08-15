@@ -66,19 +66,23 @@ static IrNode *parse_one(Program *prog, bool is_infix_recurse) {
 			lexer_advance(); /* Eat "(" */
 			
 			/* Check for while(true) or while(1) 鑺掗垾?infinite loop */
-			int is_infinite = 0;
+			IrNode *literal_condition = NULL;
 			if (lexer_at(TOK_ID) && lexer_cur()->len == 4 && memcmp(lexer_cur()->start, "true", 4) == 0 && lexer_at_peek(TOK_RPAREN)) {
-				is_infinite = 1;
+				literal_condition = new_ir(IR_WORD);
+				literal_condition->u.word.name = lexer_cur()->start;
+				literal_condition->u.word.len = lexer_cur()->len;
 				lexer_advance(); /* Eat "true" */
 			} else if (lexer_at(TOK_INT) && lexer_cur()->val != 0 && lexer_at_peek(TOK_RPAREN)) {
-				is_infinite = 1;
+				literal_condition = new_ir(IR_INT);
+				literal_condition->u.i = lexer_cur()->val;
 				lexer_advance(); /* Eat the nonzero int */
 			}
 			
-			if (is_infinite) {
+			if (literal_condition) {
 				if (lexer_at(TOK_RPAREN)) lexer_advance();
 				IrNode *body_block = parse_one(prog, false);
 				IrNode *wh_op = new_ir(IR_WHILE_INF);
+				wh_op->u.while_inf.cond = literal_condition;
 				wh_op->u.while_inf.body = body_block;
 				return wh_op;
 			}
@@ -531,7 +535,7 @@ normal_identifier:
 					return init;
 				}
 			}
-			/* 无初值 var 声明:先压 0 再 store,避免空栈 store 导致 Stack underflow,语义与有初值一致(初始为 0) */
+            /* Initialize var declarations with zero before storing. */
 			IrNode *zero = new_ir(IR_INT);
 			zero->u.i = 0;
 			zero->next = o;

@@ -45,6 +45,9 @@ typedef struct Token {
 	size_t    str_len;
 	int       line;   /* 閹碘偓閸︺劏顢戦崣鍑ょ礄1-based锟?*/
 	int       col;    /* 閹碘偓閸︺劌鍨崣鍑ょ礄1-based锟?*/
+	unsigned char has_call_arity;
+	unsigned char call_receiver_count;
+	int       call_argc;
 } Token;
 
 /* --- IR锛氭娊璞¤娉曟爲 --- */
@@ -69,6 +72,7 @@ struct IrNode {
 			unsigned char has_call_arity;
 			unsigned char call_boundary_mode;
 			unsigned char logical_booleanize;
+			unsigned char call_receiver_count;
 			int call_argc;
 			size_t call_close_offset;
 		} word;
@@ -78,7 +82,7 @@ struct IrNode {
 		struct { IrNode *cond; IrNode *then_b; IrNode *else_b; } iff;
 		struct { int size; IrNode *elements; int count; int temp_slot; } list_literal;
 		struct { int64_t start, end, step; char *var; size_t var_len; IrNode *body; } for_ext;
-		struct { IrNode *body; } while_inf;
+		struct { IrNode *cond; IrNode *body; } while_inf;
 		struct { IrNode *init; IrNode *cond; IrNode *step; IrNode *body; } for_cstyle;
 		struct { int64_t start, end; IrNode *body; char *var; size_t var_len; int var_slot; } for_range;
 		struct { IrNode *list; IrNode *body; } each;
@@ -208,6 +212,7 @@ typedef struct Program {
 	size_t *const_lens;
 	MiraType *const_types;
 	unsigned char *const_type_explicit;
+	IrNode **const_origins;
 	ConstKind *const_kinds;
 	int64_t *const_ints;
 	double *const_doubles;
@@ -229,6 +234,7 @@ typedef struct LexerState {
 	char *p;
 	char *filename;
 	int cur_line;
+	const char *line_start;
 	char alias_prefix[64];
 	ModuleId module_id;
 	bool is_stdlib;

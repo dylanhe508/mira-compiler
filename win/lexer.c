@@ -40,6 +40,7 @@ const char *token_kind_name(TokenKind k) {
 }
 
 void read_token(Token *t) {
+	memset(t, 0, sizeof(*t));
 	const char *s = comp->p;
 	while (*s == ' ' || *s == '\t' || *s == '\r') s++;
 	comp->p = (char *)s;
@@ -198,9 +199,11 @@ bool lexer_at_peek(TokenKind k) {
 	if (!comp->has_peek) {
 		char *saved_p = comp->p;
 		int saved_line = comp->cur_line;
+		const char *saved_line_start = comp->line_start;
 		read_token(&comp->peek);
 		comp->p = saved_p;
 		comp->cur_line = saved_line;
+		comp->line_start = saved_line_start;
 		comp->has_peek = true;
 	}
 	return comp->peek.kind == k;
@@ -249,6 +252,7 @@ bool lexer_push_file(const char *path, const char *alias) {
 	state->p = comp->p;
 	state->filename = (char *)comp->filename;
 	state->cur_line = comp->cur_line;
+	state->line_start = comp->line_start;
 	state->module_id = comp->current_module;
 	state->is_stdlib = comp->current_is_stdlib;
 	if (alias) {
@@ -269,6 +273,7 @@ bool lexer_push_file(const char *path, const char *alias) {
 	memcpy(owned_filename, path, filename_size);
 	comp->filename = owned_filename;
 	comp->cur_line = 1;
+	comp->line_start = buf;
 	comp->has_peek = false;
 	read_token(&comp->cur);
 	return true;
@@ -302,6 +307,7 @@ void lexer_pop_file(void) {
 	comp->p = state->p;
 	comp->filename = state->filename;
 	comp->cur_line = state->cur_line;
+	comp->line_start = state->line_start;
 	comp->current_module = state->module_id;
 	comp->current_is_stdlib = state->is_stdlib;
 	comp->has_peek = false;

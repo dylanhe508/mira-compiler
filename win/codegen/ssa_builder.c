@@ -294,6 +294,14 @@ static SsaOperand make_vreg_opnd(VReg v) {
 
 static SsaType infer_value_type(SsaFunction *f, VReg v);
 
+static SsaOpcode comparison_opcode(SsaBuilderCtx *ctx, SsaOpcode integer_opcode,
+	VReg left, VReg right) {
+	if (infer_value_type(ctx->cur_func, left) == SSA_TYPE_FLOAT &&
+		infer_value_type(ctx->cur_func, right) == SSA_TYPE_FLOAT)
+		return (SsaOpcode)(SSA_OP_FCMP_EQ + (integer_opcode - SSA_OP_CMP_EQ));
+	return integer_opcode;
+}
+
 static Def *find_def_for_ssa_function(Program *prog, const char *symbol) {
 	if (!prog || !symbol) return NULL;
 	for (Def *d = prog->defs; d; d = d->next) {
@@ -312,9 +320,10 @@ static void seed_checked_var_types(SsaBuilderCtx *ctx, int var_count) {
 	free(ctx->var_types);
 	ctx->var_types_cap = var_count;
 	ctx->var_types = var_count > 0 ? calloc((size_t)var_count, sizeof(SsaType)) : NULL;
-	if (!ctx->prog->var_types) return;
+	if (!ctx->prog->var_types || !ctx->prog->var_type_explicit) return;
 	for (int slot = 0; slot < var_count; ++slot)
-		if (mira_type_is_known(ctx->prog->var_types[slot]))
+		if (ctx->prog->var_type_explicit[slot] &&
+			mira_type_is_known(ctx->prog->var_types[slot]))
 			ctx->var_types[slot] = mira_type_to_ssa(ctx->prog->var_types[slot]);
 }
 
@@ -403,7 +412,9 @@ static void build_op(SsaBuilderCtx *ctx, IrNode *o, IrNode *next) {
 				/* store top-of-vstack into mira_vars[slot] */
 				VReg val = pop_vreg(ctx);
 				SsaType val_type = SSA_TYPE_INT;
-				if (ctx->prog->var_types && mira_type_is_known(ctx->prog->var_types[slot]))
+				if (ctx->prog->var_types && ctx->prog->var_type_explicit &&
+					ctx->prog->var_type_explicit[slot] &&
+					mira_type_is_known(ctx->prog->var_types[slot]))
 					val_type = mira_type_to_ssa(ctx->prog->var_types[slot]);
 				else if (val > 0 && val < ctx->cur_func->next_vreg &&
 				    ctx->cur_func->vreg_defs && ctx->cur_func->vreg_defs[val])
@@ -634,37 +645,37 @@ static void build_op(SsaBuilderCtx *ctx, IrNode *o, IrNode *next) {
 		else if(ISW("<") || ISW("lt")) {
 			VReg r = pop_vreg(ctx); VReg l = pop_vreg(ctx);
 			VReg dst = ssa_new_vreg(ctx->cur_func, SSA_TYPE_INT);
-			ssa_emit_binop(ctx->cur_block, SSA_OP_CMP_LT, SSA_TYPE_INT, dst, make_vreg_opnd(l), make_vreg_opnd(r));
+			ssa_emit_binop(ctx->cur_block, comparison_opcode(ctx, SSA_OP_CMP_LT, l, r), SSA_TYPE_INT, dst, make_vreg_opnd(l), make_vreg_opnd(r));
 			push_vreg(ctx, dst);
 		}
 		else if(ISW(">") || ISW("gt")) {
 			VReg r = pop_vreg(ctx); VReg l = pop_vreg(ctx);
 			VReg dst = ssa_new_vreg(ctx->cur_func, SSA_TYPE_INT);
-			ssa_emit_binop(ctx->cur_block, SSA_OP_CMP_GT, SSA_TYPE_INT, dst, make_vreg_opnd(l), make_vreg_opnd(r));
+			ssa_emit_binop(ctx->cur_block, comparison_opcode(ctx, SSA_OP_CMP_GT, l, r), SSA_TYPE_INT, dst, make_vreg_opnd(l), make_vreg_opnd(r));
 			push_vreg(ctx, dst);
 		}
 		else if(ISW(">=") || ISW("ge")) {
 			VReg r = pop_vreg(ctx); VReg l = pop_vreg(ctx);
 			VReg dst = ssa_new_vreg(ctx->cur_func, SSA_TYPE_INT);
-			ssa_emit_binop(ctx->cur_block, SSA_OP_CMP_GE, SSA_TYPE_INT, dst, make_vreg_opnd(l), make_vreg_opnd(r));
+			ssa_emit_binop(ctx->cur_block, comparison_opcode(ctx, SSA_OP_CMP_GE, l, r), SSA_TYPE_INT, dst, make_vreg_opnd(l), make_vreg_opnd(r));
 			push_vreg(ctx, dst);
 		}
 		else if(ISW("<=") || ISW("le")) {
 			VReg r = pop_vreg(ctx); VReg l = pop_vreg(ctx);
 			VReg dst = ssa_new_vreg(ctx->cur_func, SSA_TYPE_INT);
-			ssa_emit_binop(ctx->cur_block, SSA_OP_CMP_LE, SSA_TYPE_INT, dst, make_vreg_opnd(l), make_vreg_opnd(r));
+			ssa_emit_binop(ctx->cur_block, comparison_opcode(ctx, SSA_OP_CMP_LE, l, r), SSA_TYPE_INT, dst, make_vreg_opnd(l), make_vreg_opnd(r));
 			push_vreg(ctx, dst);
 		}
 		else if(ISW("=") || ISW("==") || ISW("eq")) {
 			VReg r = pop_vreg(ctx); VReg l = pop_vreg(ctx);
 			VReg dst = ssa_new_vreg(ctx->cur_func, SSA_TYPE_INT);
-			ssa_emit_binop(ctx->cur_block, SSA_OP_CMP_EQ, SSA_TYPE_INT, dst, make_vreg_opnd(l), make_vreg_opnd(r));
+			ssa_emit_binop(ctx->cur_block, comparison_opcode(ctx, SSA_OP_CMP_EQ, l, r), SSA_TYPE_INT, dst, make_vreg_opnd(l), make_vreg_opnd(r));
 			push_vreg(ctx, dst);
 		}
 		else if(ISW("!=") || ISW("ne")) {
 			VReg r = pop_vreg(ctx); VReg l = pop_vreg(ctx);
 			VReg dst = ssa_new_vreg(ctx->cur_func, SSA_TYPE_INT);
-			ssa_emit_binop(ctx->cur_block, SSA_OP_CMP_NE, SSA_TYPE_INT, dst, make_vreg_opnd(l), make_vreg_opnd(r));
+			ssa_emit_binop(ctx->cur_block, comparison_opcode(ctx, SSA_OP_CMP_NE, l, r), SSA_TYPE_INT, dst, make_vreg_opnd(l), make_vreg_opnd(r));
 			push_vreg(ctx, dst);
 		}
 		else if(ISW("and") || ISW("&")) {
