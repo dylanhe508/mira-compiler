@@ -53,6 +53,12 @@ if ($Group -in @('all', 'declarations')) {
     Expect-Compile-Error 'unknown_struct_field_type' "unknown type 'number'"
     Expect-Compile-Error 'unknown_struct_field_unknown' "unknown type 'unknown'"
     Expect-Compile-Error 'void_struct_field_type' "type 'void' is only valid as a function result"
+    Expect-Compile-Error 'typed_const_i64_error' "constant 'bad': expected i64, got f64" 'Line 2, Column 18'
+    Expect-Compile-Error 'typed_const_f64_error' "constant 'bad': expected f64, got i64" 'Line 2, Column 22'
+    Expect-Compile-Error 'typed_const_str_error' "constant 'bad': expected str, got i64" 'Line 2, Column 18'
+    Expect-Compile-Error 'typed_const_bool_error' "constant 'bad': expected bool, got i64" 'Line 2, Column 19'
+    Expect-Compile-Error 'typed_const_ptr_error' "constant 'bad': expected ptr, got str" 'Line 2, Column 18'
+    Expect-Compile-Error 'typed_const_void_error' "type 'void' is only valid as a function result"
 
     Push-Location $types
     try {
@@ -88,6 +94,20 @@ if ($Group -in @('all', 'declarations')) {
     if ($LASTEXITCODE -ne 0) { throw "program free metadata test failed: $LASTEXITCODE" }
     Write-Output 'PROGRAM FREE TYPE METADATA PASS'
 
+    $lexerStateExe = Get-BinaryPath $types 'lexer_state_test'
+    & $Gcc -O0 "-I$root" (Join-Path $PSScriptRoot 'lexer_state_test.c') `
+        (Join-Path $root 'lexer.c') (Join-Path $root 'memory.c') `
+        (Join-Path $root 'error.c') (Join-Path $root 'hash.c') -o $lexerStateExe
+    if ($LASTEXITCODE -ne 0) { throw 'lexer state test build failed' }
+    Push-Location $types
+    try {
+        & $lexerStateExe
+        if ($LASTEXITCODE -ne 0) { throw "lexer state test failed: $LASTEXITCODE" }
+    } finally {
+        Pop-Location
+    }
+    Write-Output 'LEXER STATE PASS'
+
     Write-Output 'GRADUAL TYPE DECLARATIONS PASS'
 }
 
@@ -122,6 +142,9 @@ if ($Group -in @('all', 'calls')) {
     Expect-Compile-Error 'ptr_string_argument_type_error' "argument 1 of 'identity': expected ptr, got str"
     Expect-Compile-Error 'extern_signature_error' "argument 1 of 'mira_abs': expected f64, got i64"
     Expect-Compile-Error 'typed_postfix_insufficient_error' "function 'sum' expects 2 arguments, got 1"
+    Expect-Compile-Error 'call_question_arity_error' "expects 1 arguments, got 2"
+    Expect-Compile-Error 'method_arity_error' "expects 1 arguments, got 2"
+    Expect-Compile-Error 'void_return_branch_origin_error' "function 'finish': expected void, got i64" 'Line 5, Column 9'
 
     Push-Location $types
     try {
@@ -164,6 +187,12 @@ if ($Group -in @('all', 'calls')) {
         $actual = ((& (Get-BinaryPath $types 'try_all_paths_return_valid')) -join "`n").Trim()
         if ($LASTEXITCODE -ne 0) { throw 'try_all_paths_return_valid O0 run failed' }
         if ($actual -ne '1') { throw "try_all_paths_return_valid output '$actual', expected '1'" }
+
+        & $Mira -O0 'method_arity_valid.mira' | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw 'method_arity_valid O0 compile failed' }
+        $actual = ((& (Get-BinaryPath $types 'method_arity_valid')) -join "`n").Trim()
+        if ($LASTEXITCODE -ne 0) { throw 'method_arity_valid O0 run failed' }
+        if ($actual -ne '42') { throw "method_arity_valid output '$actual', expected '42'" }
     } finally {
         Pop-Location
     }
@@ -235,6 +264,25 @@ if ($Group -in @('all', 'ssa')) {
             if ($LASTEXITCODE -ne 0) { throw "ssa_typed_values O$level run failed: $LASTEXITCODE" }
             if ($actual -ne $expected) {
                 throw "ssa_typed_values O$level output '$actual', expected '$expected'"
+            }
+        }
+
+        $focusedCases = @(
+            @{ Name = 'legacy_unannotated_mut_valid'; Expected = 'typed' },
+            @{ Name = 'f64_comparisons_valid'; Expected = "0`n1`n1`n1`n1`n1`n1`n0`n0`n1`n0`n0`n0`n0" },
+            @{ Name = 'if_typed_phi_valid'; Expected = "1.5`n2.5`nleft`nright`n3.5`ndirect-right`n11`n22" },
+            @{ Name = 'if_owned_string_phi_valid'; Expected = "mira`ntyped" },
+            @{ Name = 'switch_try_tail_values_valid'; Expected = "11`n22`n11" }
+        )
+        foreach ($case in $focusedCases) {
+            foreach ($level in @(0, 3)) {
+                & $Mira "-O$level" "$($case.Name).mira" | Out-Host
+                if ($LASTEXITCODE -ne 0) { throw "$($case.Name) O$level compile failed" }
+                $actual = ((& (Get-BinaryPath $types $case.Name)) -join "`n").Trim()
+                if ($LASTEXITCODE -ne 0) { throw "$($case.Name) O$level run failed: $LASTEXITCODE" }
+                if ($actual -ne $case.Expected) {
+                    throw "$($case.Name) O$level output '$actual', expected '$($case.Expected)'"
+                }
             }
         }
 

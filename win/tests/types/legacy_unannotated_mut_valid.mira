@@ -1,0 +1,7 @@
+fn show() {
+    mut value = 1;
+    value = "typed";
+    print(value);
+}
+
+fn main() { show(); }

@@ -1,0 +1,3 @@
+fn identity(value: i64) -> i64 { value }
+const bad: i64 = 1.5;
+fn main() { print(bad); }

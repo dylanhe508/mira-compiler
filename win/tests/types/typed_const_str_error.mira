@@ -1,0 +1,3 @@
+fn echo(value: str) -> str { value }
+const bad: str = 1;
+fn main() { print(echo(bad)); }

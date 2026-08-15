@@ -1,0 +1,2 @@
+fn ready?(value: i64) -> i64 { value }
+fn main() { print(ready?(1, 2)); }

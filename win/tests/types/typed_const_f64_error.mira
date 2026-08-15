@@ -1,0 +1,4 @@
+fn main() {
+    const bad: f64 = 1
+    print(bad);
+}

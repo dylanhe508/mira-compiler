@@ -1,0 +1,14 @@
+fn choose_owned(flag: bool) -> str {
+    if (flag) {
+        "mi" "ra" str-cat
+    } else {
+        "ty" "ped" str-cat
+    }
+}
+
+fn consume(value: str) -> str { value }
+
+fn main() -> void {
+    print(consume(choose_owned(true)));
+    print(consume(choose_owned(false)));
+}

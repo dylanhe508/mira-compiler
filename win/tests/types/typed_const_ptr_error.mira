@@ -1,0 +1,3 @@
+fn identity(value: ptr) -> ptr { value }
+const bad: ptr = "pointer";
+fn main() { print(bad); }

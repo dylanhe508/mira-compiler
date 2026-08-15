@@ -57,6 +57,8 @@ int main(void) {
 		"    mut mutable_value: f64 = 2.5;\n"
 		"    const local_answer: i64 = 7\n"
 		"    print(local_answer);\n"
+		"    while(true) { break; }\n"
+		"    while(1) { break; }\n"
 		"}\n";
 	Compiler compiler = {0};
 	compiler.src = source;
@@ -93,6 +95,23 @@ int main(void) {
 	    !program->var_type_explicit[mutable_value] ||
 	    program->var_types[mutable_value] != MIRA_TYPE_F64)
 		return 5;
+
+	IrNode *first_while = NULL;
+	IrNode *second_while = NULL;
+	for (IrNode *node = program->main_block; node; node = node->next) {
+		if (node->kind != IR_WHILE_INF) continue;
+		if (!first_while) first_while = node;
+		else if (!second_while) second_while = node;
+	}
+	if (!first_while || !second_while ||
+	    !first_while->u.while_inf.cond ||
+	    first_while->u.while_inf.cond->kind != IR_WORD ||
+	    first_while->u.while_inf.cond->u.word.len != 4 ||
+	    memcmp(first_while->u.while_inf.cond->u.word.name, "true", 4) != 0 ||
+	    !second_while->u.while_inf.cond ||
+	    second_while->u.while_inf.cond->kind != IR_INT ||
+	    second_while->u.while_inf.cond->u.i != 1)
+		return 6;
 
 	puts("TYPE METADATA PASS");
 	return 0;

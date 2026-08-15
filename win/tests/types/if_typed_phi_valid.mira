@@ -1,0 +1,36 @@
+import std.memory as memory;
+
+fn choose_float(flag: bool) -> f64 {
+    if (flag) { 1.5 } else { 2.5 }
+}
+
+fn choose_string(flag: bool) -> str {
+    if (flag) { "left" } else { "right" }
+}
+
+fn choose_pointer(flag: bool, left: ptr, right: ptr) -> ptr {
+    if (flag) { left } else { right }
+}
+
+fn main() -> void {
+    let left: ptr = memory.allocate(8);
+    let right: ptr = memory.allocate(8);
+    left :: i64 = 11;
+    right :: i64 = 22;
+
+    print(choose_float(true));
+    print(choose_float(false));
+    print(choose_string(true));
+    print(choose_string(false));
+    if (true) { 3.5 } else { 4.5 }
+    print;
+    if (false) { "direct-left" } else { "direct-right" }
+    print;
+
+    let selected_left: ptr = choose_pointer(true, left, right);
+    let selected_right: ptr = choose_pointer(false, left, right);
+    print(selected_left :: i64);
+    print(selected_right :: i64);
+    memory.free(left);
+    memory.free(right);
+}

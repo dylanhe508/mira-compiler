@@ -1,0 +1,34 @@
+fn equal(left: f64, right: f64) -> bool { left == right }
+fn different(left: f64, right: f64) -> bool { left != right }
+fn less(left: f64, right: f64) -> bool { left < right }
+fn less_equal(left: f64, right: f64) -> bool { left <= right }
+fn greater(left: f64, right: f64) -> bool { left > right }
+fn greater_equal(left: f64, right: f64) -> bool { left >= right }
+
+fn nan_value() -> f64 {
+    let zero: f64 = 0.0;
+    zero / zero
+}
+
+fn main() -> void {
+    let negative_two: f64 = -2.0;
+    let negative_one: f64 = -1.0;
+    let positive_zero: f64 = 0.0;
+    let negative_zero: f64 = -0.0;
+    let nan: f64 = nan_value();
+
+    print(equal(negative_two, negative_one));
+    print(different(negative_two, negative_one));
+    print(less(negative_two, negative_one));
+    print(less_equal(negative_two, negative_two));
+    print(greater(negative_one, negative_two));
+    print(greater_equal(negative_one, negative_one));
+    print(equal(positive_zero, negative_zero));
+    print(different(positive_zero, negative_zero));
+    print(equal(nan, nan));
+    print(different(nan, nan));
+    print(less(nan, positive_zero));
+    print(less_equal(nan, positive_zero));
+    print(greater(nan, positive_zero));
+    print(greater_equal(nan, positive_zero));
+}

@@ -1,0 +1,10 @@
+struct Point { x: i64 }
+
+impl Point {
+    fn add(self, delta: i64) -> i64 { self.x + delta }
+}
+
+fn main() {
+    let point = Point(40);
+    print(point.add(2));
+}

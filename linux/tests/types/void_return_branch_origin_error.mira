@@ -1,0 +1,10 @@
+fn finish(flag: bool) -> void {
+    if (flag) {
+        "wrong"
+    } else {
+        1
+    };
+    return;
+}
+
+fn main() { finish(true); }

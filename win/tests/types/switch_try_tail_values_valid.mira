@@ -1,0 +1,16 @@
+fn choose(value: i64) -> i64 {
+    switch (value) {
+        1: { 11 }
+        default: { 22 }
+    }
+}
+
+fn attempt() -> i64 {
+    try { 11 } catch (error) { 22 }
+}
+
+fn main() -> void {
+    print(choose(1));
+    print(choose(2));
+    print(attempt());
+}
