@@ -1,0 +1,3 @@
+fn log(value: i64) -> void { print(value); }
+fn pair(left: i64, right: i64) -> i64 { left + right }
+fn main() { print(pair(log(1), 2)); }

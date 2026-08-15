@@ -1,0 +1,2 @@
+fn attempt() -> i64 { try { 1 } catch (error) { "bad" } }
+fn main() { print(attempt()); }

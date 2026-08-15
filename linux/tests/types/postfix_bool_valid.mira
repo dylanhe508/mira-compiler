@@ -1,0 +1,4 @@
+fn logic(left: bool, right: bool) -> bool {
+    left right and left right or xor not
+}
+fn main() -> void { print(logic(true, false)); }

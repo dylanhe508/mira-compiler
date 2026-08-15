@@ -1,0 +1,3 @@
+fn main() -> void {
+    while (true) { print(7); return; }
+}

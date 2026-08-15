@@ -19,7 +19,7 @@ LDFLAGS = -no-pie -lpthread -lm
 # === 编译器源文件(平台无关核心 + SysV ABI 后端 + ELF 链接器)===
 # 不含:abi_win64.c, coff_writer.c, linker/coff.c, linker/dll_map.c, linker/pe.c
 COMPILER_SRCS = \
-	main.c lexer.c parser.c codegen.c hash.c memory.c error.c \
+	main.c lexer.c parser.c typecheck.c codegen.c hash.c memory.c error.c \
 	codegen/decision.c codegen/stdlib_builtins.c codegen/ir.c codegen/ir_opt.c \
 	codegen/ir_cfg_cleanup.c codegen/ir_dump.c \
 	codegen/encoder.c codegen/elf_writer.c codegen/abi_sysv.c \
@@ -92,19 +92,19 @@ CODEGEN_DEPS = codegen/index.c codegen/state.c codegen/emit.c \
 	codegen/words_arith.c codegen/words_async.c codegen/words_compare.c \
 	codegen/words_data.c codegen/words_debug.c codegen/words_file.c \
 	codegen/words_io.c codegen/words_math.c codegen/words_memory.c \
-	codegen/words_string.c codegen/words_winapi.c codegen/stdlib_builtins.h
+	codegen/words_string.c codegen/words_winapi.c codegen/stdlib_builtins.h typecheck.h
 
 codegen.o: codegen.c $(CODEGEN_DEPS)
 	$(CC) $(CFLAGS) -c -o $@ codegen.c
 
-codegen/ssa_builder.o: codegen/ssa_builder.c codegen/stdlib_builtins.h
+codegen/ssa_builder.o: codegen/ssa_builder.c codegen/stdlib_builtins.h typecheck.h
 codegen/ssa_ref.o: codegen/ssa_ref.c codegen/stdlib_builtins.h
 codegen/stdlib_builtins.o: codegen/stdlib_builtins.c codegen/stdlib_builtins.h
 
 # parser.c 同样是壳:parser/index.c 以 #include 聚合
 # (helpers/infix/parse_one/blocks + parser.h)。同理由显式规则声明依赖。
 PARSER_DEPS = parser/index.c parser/modules.c parser/helpers.c parser/infix.c \
-	parser/parse_one.c parser/blocks.c parser/parser.h
+	parser/parse_one.c parser/blocks.c parser/parser.h typecheck.h
 
 parser.o: parser.c $(PARSER_DEPS)
 	$(CC) $(CFLAGS) -c -o $@ parser.c

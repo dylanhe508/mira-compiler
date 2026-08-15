@@ -1,0 +1,3 @@
+import adjacent_one as one;
+import adjacent_two as two;
+fn main() { let values = [eval(two.same(one.same(1)))]; print(0); }

@@ -1,0 +1,2 @@
+fn label() -> str { 42 }
+fn main() { print(label()); }

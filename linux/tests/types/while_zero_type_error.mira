@@ -1,0 +1,3 @@
+fn main() -> void {
+    while (0) { return; }
+}

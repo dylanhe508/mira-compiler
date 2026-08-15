@@ -1,0 +1,3 @@
+import ambiguous_missing_a as a;
+import ambiguous_missing_b as b;
+fn main() { print(b.missing()); }

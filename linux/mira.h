@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#include "typecheck.h"
+
 /* --- Arena Allocator --- */
 typedef struct ArenaBlock {
 	struct ArenaBlock *next;
@@ -55,11 +57,20 @@ typedef enum {
 typedef struct IrNode IrNode;
 struct IrNode {
 	IrKind kind;
+	int line;
+	int col;
 	union {
 		int64_t  i;
 		double   d;     /* IR_FLOAT */
 		struct { char *s; size_t len; } str;
-		struct { char *name; size_t len; } word;
+		struct {
+			char *name;
+			size_t len;
+			unsigned char has_call_arity;
+			unsigned char call_boundary_mode;
+			int call_argc;
+			size_t call_close_offset;
+		} word;
 		int      var_slot;   /* IR_VAR锛氬彉閲忔Ы浣嶄笅??*/
 		int      const_slot; /* IR_CONST锛氬父閲忔Ы浣嶄笅??*/
 		IrNode *block;   /* 閸ф鍞寸粭顑跨閺夆槄绱濋悽?next 娑撹尪锟?*/
@@ -76,6 +87,10 @@ struct IrNode {
 		struct { char **params; size_t *param_lens; int param_count; IrNode *body; } lambda;
 	} u;
 	IrNode *next;
+	const char *source;
+	const char *source_filename;
+	size_t source_offset;
+	uint32_t source_module;
 };
 
 typedef struct Def {
@@ -83,7 +98,13 @@ typedef struct Def {
 	size_t name_len;
 	char **params;   /* 閸欏倹鏆熼崥宥忕礉param_count 锟?*/
 	size_t *param_lens;
+	MiraType *param_types;
+	unsigned char *param_type_explicit;
 	int param_count;
+	MiraType return_type;
+	unsigned char return_type_explicit;
+	int line;
+	int col;
 	IrNode *body;
 	bool is_extern;  /* 閺勵垰鎯侀弰?extern 婢圭増妲戦敍鍫熸￥ body锟?*/
 	struct Def *next;
@@ -149,15 +170,32 @@ typedef struct {
 	size_t import_count;
 	size_t import_cap;
 } ModuleTable;
+
+typedef struct MiraSourceInfo {
+	const char *source;
+	size_t source_len;
+	const char *filename;
+	const char *module_path;
+	size_t module_path_len;
+	struct MiraSourceInfo *next;
+} MiraSourceInfo;
+
 typedef struct Program {
 	Arena ir_arena;
+	MiraSourceInfo *source_infos;
 	Pragma *pragmas;
 	Def *defs;
+	MiraType main_return_type;
+	unsigned char main_return_type_explicit;
+	int main_line;
+	int main_col;
 	IrNode *main_block;   /* main: { ... } 閻ㄥ嫬锟?*/
 	IrNode *init_ops;     /* 妞よ泛鐪伴惃?x: 123 / y: "hello" 娴溠呮晸閻ㄥ嫬鍨垫慨瀣鎼村繐锟?*/
 	/* 閸忋劌鐪崣姗€锟?*/
 	char **var_names;
 	size_t *var_lens;
+	MiraType *var_types;
+	unsigned char *var_type_explicit;
 	int *var_scopes;
 	int var_count;
 	int var_cap;
@@ -167,6 +205,8 @@ typedef struct Program {
 	/* 鐢悂锟?*/
 	char **const_names;
 	size_t *const_lens;
+	MiraType *const_types;
+	unsigned char *const_type_explicit;
 	ConstKind *const_kinds;
 	int64_t *const_ints;
 	double *const_doubles;
@@ -195,7 +235,7 @@ typedef struct LexerState {
 } LexerState;
 
 /* --- Compiler 缂栬瘧鍣ㄧ姸??--- */
-typedef struct {
+typedef struct Compiler {
 	char *src;
 	char *p;
 	Token cur;

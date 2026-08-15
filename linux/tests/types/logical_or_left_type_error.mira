@@ -1,0 +1,1 @@
+fn main() -> void { let bad: bool = 1 || false; drop(bad); }

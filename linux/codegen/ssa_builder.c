@@ -4,6 +4,22 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* Keep the semantic type system independent of SSA declarations.  Lowering
+ * belongs at this backend boundary, and callers preserve their existing
+ * inference/default path by consulting it only for known checked types. */
+static SsaType mira_type_to_ssa(MiraType type) {
+	switch (type) {
+	case MIRA_TYPE_F64: return SSA_TYPE_FLOAT;
+	case MIRA_TYPE_STR: return SSA_TYPE_PTR;
+	case MIRA_TYPE_VOID: return SSA_TYPE_VOID;
+	case MIRA_TYPE_I64:
+	case MIRA_TYPE_BOOL:
+	case MIRA_TYPE_UNKNOWN:
+	default:
+		return SSA_TYPE_INT;
+	}
+}
+
 /* ========== 閸愬懎鐡ㄩ崚鍡涘帳鏉堝懎濮?========== */
 void ssa_init_module(SsaModule *mod) {
 	memset(mod, 0, sizeof(*mod));
@@ -277,6 +293,30 @@ static SsaOperand make_vreg_opnd(VReg v) {
 
 static SsaType infer_value_type(SsaFunction *f, VReg v);
 
+static Def *find_def_for_ssa_function(Program *prog, const char *symbol) {
+	if (!prog || !symbol) return NULL;
+	for (Def *d = prog->defs; d; d = d->next) {
+		char name[256];
+		size_t len = d->name_len < sizeof(name) - 1 ? d->name_len : sizeof(name) - 1;
+		for (size_t i = 0; i < len; ++i) name[i] = d->name[i] == '-' ? '_' : d->name[i];
+		name[len] = '\0';
+		if ((strcmp(symbol, "mira_main") == 0 && len == 4 && memcmp(name, "main", 4) == 0) ||
+		    strcmp(symbol, name) == 0)
+			return d;
+	}
+	return NULL;
+}
+
+static void seed_checked_var_types(SsaBuilderCtx *ctx, int var_count) {
+	free(ctx->var_types);
+	ctx->var_types_cap = var_count;
+	ctx->var_types = var_count > 0 ? calloc((size_t)var_count, sizeof(SsaType)) : NULL;
+	if (!ctx->prog->var_types) return;
+	for (int slot = 0; slot < var_count; ++slot)
+		if (mira_type_is_known(ctx->prog->var_types[slot]))
+			ctx->var_types[slot] = mira_type_to_ssa(ctx->prog->var_types[slot]);
+}
+
 static void build_op(SsaBuilderCtx *ctx, IrNode *o, IrNode *next);
 
 static void build_ops(SsaBuilderCtx *ctx, IrNode *list) {
@@ -362,7 +402,9 @@ static void build_op(SsaBuilderCtx *ctx, IrNode *o, IrNode *next) {
 				/* store top-of-vstack into mira_vars[slot] */
 				VReg val = pop_vreg(ctx);
 				SsaType val_type = SSA_TYPE_INT;
-				if (val > 0 && val < ctx->cur_func->next_vreg &&
+				if (ctx->prog->var_types && mira_type_is_known(ctx->prog->var_types[slot]))
+					val_type = mira_type_to_ssa(ctx->prog->var_types[slot]);
+				else if (val > 0 && val < ctx->cur_func->next_vreg &&
 				    ctx->cur_func->vreg_defs && ctx->cur_func->vreg_defs[val])
 					val_type = ctx->cur_func->vreg_defs[val]->type;
 				if (slot >= 0 && slot < ctx->var_types_cap)
@@ -782,8 +824,10 @@ static void build_op(SsaBuilderCtx *ctx, IrNode *o, IrNode *next) {
 				if (next && next->kind == IR_WORD && next->u.word.len == 1 &&
 				    next->u.word.name[0] == '@')
 					o->next = next->next; /* consume the '@' token */
-				VReg dst = ssa_new_vreg(ctx->cur_func, SSA_TYPE_INT);
-				SsaInst *i = alloc_inst(ctx->cur_block, SSA_OP_LOAD_PARAM, SSA_TYPE_INT, dst);
+				SsaType param_type = ctx->cur_func->param_types
+					? ctx->cur_func->param_types[pidx] : SSA_TYPE_INT;
+				VReg dst = ssa_new_vreg(ctx->cur_func, param_type);
+				SsaInst *i = alloc_inst(ctx->cur_block, SSA_OP_LOAD_PARAM, param_type, dst);
 				i->op1.kind = SSA_OPND_IMM;
 				i->op1.u.imm = pidx;
 				i->operand_count = 1;
@@ -879,15 +923,16 @@ static void build_op(SsaBuilderCtx *ctx, IrNode *o, IrNode *next) {
 					// 閺屻儲澹橀悽銊﹀煕閼奉亜鐣炬稊澶婂毐閺佸府绱濋懢宄板絿閸欏倹鏆熸稉顏呮殶楠炶泛鍤弽?
 					int nparams = 0;
 					bool is_ext = false;
-					bool found_def = false;
+					Def *matched_def = NULL;
 					for (Def *dd = ctx->prog->defs; dd; dd = dd->next) {
 						if (dd->name_len == slen && memcmp(dd->name, n, slen) == 0) {
+							matched_def = dd;
 							nparams = dd->param_count;
 							is_ext = dd->is_extern;
-							found_def = true;
 							break;
 						}
 					}
+					bool found_def = matched_def != NULL;
 					
 					/* Check if word matches a global variable slot (could be a lambda pointer) */
 					int var_slot = -1;
@@ -930,11 +975,15 @@ static void build_op(SsaBuilderCtx *ctx, IrNode *o, IrNode *next) {
 							? (runtime_builtin->result_count ? runtime_builtin->result_type : SSA_TYPE_VOID)
 							: SSA_TYPE_INT;
 						if (!runtime_builtin) {
-							for (int fi = 0; fi < ctx->mod->func_count; ++fi) {
-								SsaFunction *known = ctx->mod->functions[fi];
-								if (known && strcmp(known->name, sym) == 0) {
-									call_type = known->return_type;
-									break;
+							if (matched_def && mira_type_is_known(matched_def->return_type)) {
+								call_type = mira_type_to_ssa(matched_def->return_type);
+							} else {
+								for (int fi = 0; fi < ctx->mod->func_count; ++fi) {
+									SsaFunction *known = ctx->mod->functions[fi];
+									if (known && strcmp(known->name, sym) == 0) {
+										call_type = known->return_type;
+										break;
+									}
 								}
 							}
 						}
@@ -1675,10 +1724,18 @@ void ssa_build_function(SsaBuilderCtx *ctx, Def *d) {
 	for (size_t i = 0; i < slen; i++) sym[i] = (d->name[i] == '-') ? '_' : d->name[i];
 	sym[slen] = '\0';
 
+	SsaType return_type = mira_type_is_known(d->return_type)
+		? mira_type_to_ssa(d->return_type) : SSA_TYPE_INT;
 	ctx->cur_func = ssa_create_function(ctx->mod,
 		(slen == 4 && memcmp(sym, "main", 4) == 0) ? "mira_main" : sym,
-		SSA_TYPE_INT);
+		return_type);
 	ctx->cur_func->param_count = d->param_count;
+	if (d->param_count > 0) {
+		ctx->cur_func->param_types = calloc((size_t)d->param_count, sizeof(SsaType));
+		for (int i = 0; i < d->param_count; ++i)
+			if (d->param_types && mira_type_is_known(d->param_types[i]))
+				ctx->cur_func->param_types[i] = mira_type_to_ssa(d->param_types[i]);
+	}
 	ctx->cur_def = d;
 	ctx->cur_block = ssa_create_block(ctx->cur_func, "entry");
 	ctx->vstack_depth = 0;
@@ -1693,18 +1750,17 @@ void ssa_build_function(SsaBuilderCtx *ctx, Def *d) {
 	/* 閸欐﹢鍣洪悳鏉挎躬閻╁瓨甯撮柅姘崇箖 mira_vars[slot] 鐠佸潡妫堕敍鍦玈A_OP_LOAD_VAR / STORE_VAR閿涘绱濇稉宥夋付鐟?alloca */
 	ctx->local_vars = NULL; /* 娑撳秴鍟€娴ｈ法鏁?*/
 	ctx->local_var_count = var_count;
-	free(ctx->var_types);
-	ctx->var_types_cap = var_count;
-	ctx->var_types = var_count > 0 ? calloc((size_t)var_count, sizeof(SsaType)) : NULL;
+	seed_checked_var_types(ctx, var_count);
 
 
 	build_ops(ctx, d->body);
 	
 	// 婵″倹鐏夌紒鎾崇啲濞屸剝婀?RET 閹稿洣鎶ら敍灞筋杻閸旂姳绔存稉?
 	if(!ctx->cur_block->inst_tail || ctx->cur_block->inst_tail->IrNode != SSA_OP_RET) {
-		if (ctx->vstack_depth > 0) {
+		if (ctx->vstack_depth > 0 && return_type != SSA_TYPE_VOID) {
 			VReg ret_v = pop_vreg(ctx);
-			if (ret_v > 0 && ret_v < ctx->cur_func->next_vreg &&
+			if (!mira_type_is_known(d->return_type) &&
+			    ret_v > 0 && ret_v < ctx->cur_func->next_vreg &&
 			    ctx->cur_func->vreg_defs && ctx->cur_func->vreg_defs[ret_v])
 				ctx->cur_func->return_type = ctx->cur_func->vreg_defs[ret_v]->type;
 			SsaInst *i = alloc_inst(ctx->cur_block, SSA_OP_RET, SSA_TYPE_INT, 0);
@@ -1760,6 +1816,8 @@ void ssa_build_program(Program *prog, SsaModule *out_mod) {
 	 * types from those signatures. */
 	for (int fi = 0; fi < out_mod->func_count; ++fi) {
 		SsaFunction *f = out_mod->functions[fi];
+		Def *signature = find_def_for_ssa_function(prog, f->name);
+		if (signature && mira_type_is_known(signature->return_type)) continue;
 		for (int bi = 0; bi < f->block_count; ++bi) {
 			for (SsaInst *i = f->blocks[bi]->inst_head; i; i = i->next) {
 				if (i->IrNode != SSA_OP_RET || i->op1.kind != SSA_OPND_VREG) continue;
@@ -1799,19 +1857,34 @@ void ssa_build_program(Program *prog, SsaModule *out_mod) {
 	}
 	
 	if (prog->main_block && !has_user_main) {
-		ctx.cur_func = ssa_create_function(ctx.mod, "mira_main", SSA_TYPE_INT);
+		SsaType main_return_type = mira_type_is_known(prog->main_return_type)
+			? mira_type_to_ssa(prog->main_return_type) : SSA_TYPE_INT;
+		ctx.cur_func = ssa_create_function(ctx.mod, "mira_main", main_return_type);
 		ctx.cur_block = ssa_create_block(ctx.cur_func, "entry");
 		
 		int var_count = prog->var_count;
 		ctx.local_vars = NULL;
 		ctx.local_var_count = var_count;
 		ctx.vstack_depth = 0;
+		seed_checked_var_types(&ctx, var_count);
 
 		build_ops(&ctx, prog->main_block);
 		
 		if(!ctx.cur_block->inst_tail || ctx.cur_block->inst_tail->IrNode != SSA_OP_RET) {
-			alloc_inst(ctx.cur_block, SSA_OP_RET, SSA_TYPE_VOID, 0);
+			if (main_return_type != SSA_TYPE_VOID &&
+			    mira_type_is_known(prog->main_return_type) && ctx.vstack_depth > 0) {
+				VReg ret_v = pop_vreg(&ctx);
+				SsaInst *ret = alloc_inst(ctx.cur_block, SSA_OP_RET, SSA_TYPE_INT, 0);
+				ret->op1.kind = SSA_OPND_VREG;
+				ret->op1.u.vreg = ret_v;
+				ret->operand_count = 1;
+			} else {
+				alloc_inst(ctx.cur_block, SSA_OP_RET, SSA_TYPE_VOID, 0);
+			}
 		}
+		free(ctx.var_types);
+		ctx.var_types = NULL;
+		ctx.var_types_cap = 0;
 	}
 	ssa_function_index_rebuild(out_mod);
 

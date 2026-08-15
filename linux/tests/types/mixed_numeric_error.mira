@@ -1,0 +1,4 @@
+fn main() -> void {
+    let total: f64 = 1 + 2.0;
+    drop(total);
+}

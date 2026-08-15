@@ -1,0 +1,28 @@
+fn postfix_arithmetic() -> i64 {
+    6 3 & 6 3 | + 6 3 ^ + 1 3 << + 8 1 >> + 8 3 mod +
+}
+
+fn main() -> void {
+    let add: i64 = 8 + 2;
+    let sub: i64 = 8 - 2;
+    let mul: i64 = 8 * 2;
+    let div: i64 = 8 / 2;
+    let rem: i64 = 8 % 3;
+    let neg_i: i64 = 5 neg;
+    let add_f: f64 = 8.0 + 2.0;
+    let sub_f: f64 = 8.0 - 2.0;
+    let mul_f: f64 = 8.0 * 2.0;
+    let div_f: f64 = 8.0 / 2.0;
+    let eq: bool = add == 10;
+    let ne: bool = sub != 5;
+    let lt: bool = rem < 2;
+    let gt: bool = mul > 8;
+    let le: bool = div <= 4;
+    let ge: bool = add >= 10;
+    let short_logic: bool = (eq && ne) || (lt && gt);
+    drop(add_f); drop(sub_f); drop(mul_f); drop(div_f);
+    drop(le); drop(ge);
+    drop(postfix_arithmetic());
+    print(neg_i);
+    print(short_logic);
+}

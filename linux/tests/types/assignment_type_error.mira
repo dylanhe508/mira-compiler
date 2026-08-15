@@ -1,0 +1,4 @@
+fn main() -> void {
+    mut count: i64 = 1;
+    count = "bad";
+}

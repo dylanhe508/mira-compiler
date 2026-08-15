@@ -1,0 +1,2 @@
+fn echo(value) { value }
+fn main() { 7 echo print }

@@ -633,6 +633,7 @@ void compile_file_obj(const char *path, const char *obj_path) {
 
 	Program *prog = parser_parse(&c);
 	clock_t profile_parse = profile_enabled ? clock() : 0;
+	mira_typecheck_program(&c, prog);
 	codegen(&c, prog);
 	clock_t profile_codegen = profile_enabled ? clock() : 0;
 
@@ -714,6 +715,7 @@ void compile_file_ir_dump(const char *path, const char *out_path) {
 
 
 	Program *prog = parser_parse(&c);
+	mira_typecheck_program(&c, prog);
 	codegen(&c, prog);
 
 	IrBuffer *ir = &cg->ir;
@@ -926,6 +928,7 @@ static void full_build(const char *mira_path) {
 		"rt_debug" RT_OBJ_EXT, "rt_io" RT_OBJ_EXT, "rt_struct" RT_OBJ_EXT, "rt_win" RT_OBJ_EXT,
 		"rt_sched" RT_OBJ_EXT, "rt_channel" RT_OBJ_EXT,
 #ifdef _WIN32
+		"rt_chkstk_x86_64" RT_OBJ_EXT,
 		NULL
 #else
 		/* POSIX 运行时附加模块:fiber 协程切换 + 同步原语,
@@ -1163,6 +1166,7 @@ static void full_build(const char *mira_path) {
 	static const struct { const char *mod; const char *dep; } mod_deps[] = {
 		{ "rt_collection" RT_OBJ_EXT, "rt_mem" RT_OBJ_EXT },
 		{ "rt_win" RT_OBJ_EXT, "rt_mem" RT_OBJ_EXT },
+		{ "rt_win" RT_OBJ_EXT, "rt_chkstk_x86_64" RT_OBJ_EXT },
 		{ "rt_channel" RT_OBJ_EXT, "rt_sched" RT_OBJ_EXT },
 #ifndef _WIN32
 		/* POSIX 运行时附加依赖:调度器与通道依赖 fiber 切换和同步原语,

@@ -1,0 +1,3 @@
+# misleading delimiter before the call: )
+fn pair(left: i64, right: i64) -> i64 { left + right }
+fn main() { print(pair(1, 2, 3)); }

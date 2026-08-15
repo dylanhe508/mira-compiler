@@ -42,16 +42,63 @@ int prog_add_var(Program *prog, char *name, size_t len) {
 		prog->var_cap = prog->var_cap ? prog->var_cap * 2 : 8;
 		prog->var_names = realloc(prog->var_names, (size_t)prog->var_cap * sizeof(char *));
 		prog->var_lens = realloc(prog->var_lens, (size_t)prog->var_cap * sizeof(size_t));
+		prog->var_types = realloc(prog->var_types, (size_t)prog->var_cap * sizeof(MiraType));
+		prog->var_type_explicit = realloc(prog->var_type_explicit, (size_t)prog->var_cap);
 		prog->var_scopes = realloc(prog->var_scopes, (size_t)prog->var_cap * sizeof(int));
 		prog->var_structs = realloc(prog->var_structs, (size_t)prog->var_cap * sizeof(StructDef *));
 		prog->var_mutable = realloc(prog->var_mutable, (size_t)prog->var_cap);
 		memset(prog->var_structs + old_cap, 0, (size_t)(prog->var_cap - old_cap) * sizeof(StructDef *));
 		memset(prog->var_mutable + old_cap, 0, (size_t)(prog->var_cap - old_cap));
+		memset(prog->var_types + old_cap, 0, (size_t)(prog->var_cap - old_cap) * sizeof(MiraType));
+		memset(prog->var_type_explicit + old_cap, 0, (size_t)(prog->var_cap - old_cap));
 	}
 	prog->var_names[prog->var_count] = name;
 	prog->var_lens[prog->var_count] = len;
 	prog->var_scopes[prog->var_count] = current_var_scope;
 	return prog->var_count++;
+}
+
+static void prog_set_var_type(Program *prog, int slot, MiraType type, bool is_explicit) {
+	if (slot < 0 || slot >= prog->var_count) return;
+	prog->var_types[slot] = type;
+	prog->var_type_explicit[slot] = is_explicit ? 1 : 0;
+}
+
+static void prog_note_source(Program *prog) {
+	if (!comp->src) return;
+	for (MiraSourceInfo *info = prog->source_infos; info; info = info->next)
+		if (info->source == comp->src) return;
+	MiraSourceInfo *info = arena_alloc(&prog->ir_arena, sizeof(*info));
+	memset(info, 0, sizeof(*info));
+	info->source = comp->src;
+	info->source_len = strlen(comp->src);
+	if (comp->filename) {
+		size_t filename_len = strlen(comp->filename);
+		char *filename = arena_alloc(&prog->ir_arena, filename_len + 1);
+		memcpy(filename, comp->filename, filename_len + 1);
+		info->filename = filename;
+	}
+	if (comp->current_module < comp->modules.module_count) {
+		ModuleRecord *module = &comp->modules.modules[comp->current_module];
+		info->module_path = module->path;
+		info->module_path_len = module->path_len;
+	}
+	info->next = prog->source_infos;
+	prog->source_infos = info;
+}
+
+static MiraType parse_declared_type(bool allow_void) {
+	prog_note_source(comp->prog);
+	Token token = *lexer_cur();
+	MiraType type = MIRA_TYPE_UNKNOWN;
+	if (!mira_type_from_name(token.start, token.len, &type) || type == MIRA_TYPE_UNKNOWN)
+		mira_error(comp->src, comp->filename, token.line, token.col, 1,
+			"unknown type '%.*s'", (int)token.len, token.start);
+	if (!allow_void && type == MIRA_TYPE_VOID)
+		mira_error(comp->src, comp->filename, token.line, token.col, 1,
+			"type 'void' is only valid as a function result");
+	lexer_advance();
+	return type;
 }
 
 static int prog_new_var_scope(Program *prog, int parent) {
@@ -151,11 +198,17 @@ static int prog_add_const(Program *prog, char *name, size_t len, ConstKind k, in
 		prog->const_cap = prog->const_cap ? prog->const_cap * 2 : 8;
 		prog->const_names = realloc(prog->const_names, (size_t)prog->const_cap * sizeof(char *));
 		prog->const_lens = realloc(prog->const_lens, (size_t)prog->const_cap * sizeof(size_t));
+		prog->const_types = realloc(prog->const_types, (size_t)prog->const_cap * sizeof(MiraType));
+		prog->const_type_explicit = realloc(prog->const_type_explicit, (size_t)prog->const_cap);
 		prog->const_kinds = realloc(prog->const_kinds, (size_t)prog->const_cap * sizeof(ConstKind));
 		prog->const_ints = realloc(prog->const_ints, (size_t)prog->const_cap * sizeof(int64_t));
 		prog->const_doubles = realloc(prog->const_doubles, (size_t)prog->const_cap * sizeof(double));
 		prog->const_strs = realloc(prog->const_strs, (size_t)prog->const_cap * sizeof(char *));
 		prog->const_str_lens = realloc(prog->const_str_lens, (size_t)prog->const_cap * sizeof(size_t));
+		memset(prog->const_types + prog->const_count, 0,
+			(size_t)(prog->const_cap - prog->const_count) * sizeof(MiraType));
+		memset(prog->const_type_explicit + prog->const_count, 0,
+			(size_t)(prog->const_cap - prog->const_count));
 	}
 	int i = prog->const_count++;
 	prog->const_names[i] = name;
@@ -176,10 +229,29 @@ static int prog_const_slot(Program *prog, const char *name, size_t len) {
 }
 
 static IrNode *new_ir(IrKind k) {
+	prog_note_source(comp->prog);
 	IrNode *o = arena_alloc(&comp->prog->ir_arena, sizeof(IrNode));
 	memset(o, 0, sizeof(IrNode));
 	o->kind = k;
+	o->line = lexer_cur()->line;
+	o->col = lexer_cur()->col;
+	o->source = comp->src;
+	o->source_module = comp->current_module;
+	if (lexer_cur()->start >= comp->src)
+		o->source_offset = (size_t)(lexer_cur()->start - comp->src);
+	if (comp->filename) {
+		size_t filename_len = strlen(comp->filename);
+		char *filename = arena_alloc(&comp->prog->ir_arena, filename_len + 1);
+		memcpy(filename, comp->filename, filename_len + 1);
+		o->source_filename = filename;
+	}
 	return o;
+}
+
+static void prog_set_const_type(Program *prog, int slot, MiraType type, bool is_explicit) {
+	if (slot < 0 || slot >= prog->const_count) return;
+	prog->const_types[slot] = type;
+	prog->const_type_explicit[slot] = is_explicit ? 1 : 0;
 }
 
 /* 闂佸搫顑呯€氫即鍩€?value_op -> var_addr -> ! 闂佹眹鍔岀€氫即骞楁總鍛婃櫖鐎光偓閳ь剟寮妶鍡欘洸?x: 123 / y: "hello" */

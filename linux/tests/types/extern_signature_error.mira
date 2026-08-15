@@ -1,0 +1,2 @@
+extern fn mira_abs(value: f64) -> i64;
+fn main() { print(mira_abs(1)); }

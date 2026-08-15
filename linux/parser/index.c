@@ -151,7 +151,7 @@ Program *parser_parse(Compiler *c) {
 				if (!lexer_at(TOK_ID))
 					mira_error(comp->src, comp->filename, lexer_cur()->line, lexer_cur()->col,
 						1, "struct field type expected");
-				lexer_advance();
+				parse_declared_type(false);
 				if (lexer_at(TOK_COMMA)) lexer_advance();
 				else if (!lexer_at(TOK_NEWLINE) && !lexer_at(TOK_RBRACE))
 					mira_error(comp->src, comp->filename, lexer_cur()->line, lexer_cur()->col,
@@ -183,6 +183,7 @@ Program *parser_parse(Compiler *c) {
 				prog_add_var(prog, temp_name, (size_t)temp_len);
 			Def *constructor = arena_alloc(&prog->ir_arena, sizeof(*constructor));
 			memset(constructor, 0, sizeof(*constructor));
+			constructor->line = lexer_cur()->line; constructor->col = lexer_cur()->col;
 			constructor->name = struct_name; constructor->name_len = struct_name_len;
 			constructor->params = fields; constructor->param_lens = field_lens;
 			constructor->param_count = count; constructor->body = constructor_body;
@@ -210,6 +211,7 @@ Program *parser_parse(Compiler *c) {
 				self->next = index; index->next = get;
 				Def *getter = arena_alloc(&prog->ir_arena, sizeof(*getter));
 				memset(getter, 0, sizeof(*getter));
+				getter->line = lexer_cur()->line; getter->col = lexer_cur()->col;
 				getter->name = getter_name; getter->name_len = getter_len;
 				getter->params = getter_params; getter->param_lens = getter_lens;
 				getter->param_count = 1; getter->body = self;
@@ -224,6 +226,7 @@ Program *parser_parse(Compiler *c) {
 		 * Seeing `fn` opts the file into infix mode; no pragma is required. */
 		if (lexer_at(TOK_ID) && lexer_cur()->len == 2 &&
 		    memcmp(lexer_cur()->start, "fn", 2) == 0) {
+			Token def_token = *lexer_cur();
 			current_syntax_mode = 1;
 			lexer_advance();
 			if (!lexer_at(TOK_ID)) {
@@ -260,6 +263,10 @@ Program *parser_parse(Compiler *c) {
 			bool method_mut_self = false;
 			char **params = arena_alloc(&prog->ir_arena, (size_t)param_cap * sizeof(char *));
 			size_t *param_lens = arena_alloc(&prog->ir_arena, (size_t)param_cap * sizeof(size_t));
+			MiraType *param_types = arena_alloc(&prog->ir_arena, (size_t)param_cap * sizeof(MiraType));
+			unsigned char *param_type_explicit = arena_alloc(&prog->ir_arena, (size_t)param_cap);
+			memset(param_types, 0, (size_t)param_cap * sizeof(MiraType));
+			memset(param_type_explicit, 0, (size_t)param_cap);
 			while (!lexer_at(TOK_RPAREN) && !lexer_at(TOK_EOF)) {
 				if (impl_owner && param_count == 0 && lexer_at(TOK_ID) &&
 				    lexer_cur()->len == 3 && memcmp(lexer_cur()->start, "mut", 3) == 0) {
@@ -274,24 +281,31 @@ Program *parser_parse(Compiler *c) {
 					int new_cap = param_cap * 2;
 					char **new_params = arena_alloc(&prog->ir_arena, (size_t)new_cap * sizeof(char *));
 					size_t *new_lens = arena_alloc(&prog->ir_arena, (size_t)new_cap * sizeof(size_t));
+					MiraType *new_types = arena_alloc(&prog->ir_arena, (size_t)new_cap * sizeof(MiraType));
+					unsigned char *new_explicit = arena_alloc(&prog->ir_arena, (size_t)new_cap);
+					memset(new_types, 0, (size_t)new_cap * sizeof(MiraType));
+					memset(new_explicit, 0, (size_t)new_cap);
 					memcpy(new_params, params, (size_t)param_count * sizeof(char *));
 					memcpy(new_lens, param_lens, (size_t)param_count * sizeof(size_t));
+					memcpy(new_types, param_types, (size_t)param_count * sizeof(MiraType));
+					memcpy(new_explicit, param_type_explicit, (size_t)param_count);
 					params = new_params;
 					param_lens = new_lens;
+					param_types = new_types;
+					param_type_explicit = new_explicit;
 					param_cap = new_cap;
 				}
 				params[param_count] = lexer_cur()->start;
 				param_lens[param_count] = lexer_cur()->len;
 				param_count++;
 				lexer_advance();
-				/* Type annotations are syntax-layer metadata for now.  The
-				 * existing scalar SSA remains the lowering target. */
 				if (lexer_at(TOK_COLON)) {
 					lexer_advance();
 					if (!lexer_at(TOK_ID))
 						mira_error(comp->src, comp->filename, lexer_cur()->line, lexer_cur()->col,
 							1, "parameter type name expected after ':'");
-					lexer_advance();
+					param_types[param_count - 1] = parse_declared_type(false);
+					param_type_explicit[param_count - 1] = 1;
 				}
 				if (lexer_at(TOK_COMMA)) lexer_advance();
 				else if (!lexer_at(TOK_RPAREN)) {
@@ -300,6 +314,8 @@ Program *parser_parse(Compiler *c) {
 				}
 			}
 			lexer_expect(TOK_RPAREN);
+			MiraType return_type = MIRA_TYPE_UNKNOWN;
+			unsigned char return_type_explicit = 0;
 			/* Optional modern return type: fn f(...) -> i64 { ... } */
 			if (lexer_at(TOK_ID) && lexer_cur()->len == 2 &&
 			    memcmp(lexer_cur()->start, "->", 2) == 0) {
@@ -307,7 +323,8 @@ Program *parser_parse(Compiler *c) {
 				if (!lexer_at(TOK_ID))
 					mira_error(comp->src, comp->filename, lexer_cur()->line, lexer_cur()->col,
 						1, "return type name expected after '->'");
-				lexer_advance();
+				return_type = parse_declared_type(true);
+				return_type_explicit = 1;
 			}
 			while (lexer_eat(TOK_NEWLINE)) {}
 			lexer_expect(TOK_LBRACE);
@@ -324,6 +341,10 @@ Program *parser_parse(Compiler *c) {
 					mira_error(comp->src, comp->filename, lexer_cur()->line, lexer_cur()->col, 1,
 						"main function cannot have parameters");
 				}
+				prog->main_return_type = return_type;
+				prog->main_return_type_explicit = return_type_explicit;
+				prog->main_line = def_token.line;
+				prog->main_col = def_token.col;
 				/* ¶¥²ã var/±í´ïÊ½³õÊ¼»¯Á´ÒÑ×·¼Ó½ø main_block,fn main body °´Ô´ÂëË³Ðò½Óºó(Óë¾­µä main:{} Ò»ÖÂ),±ÜÃâ¸²¸Ç¶ªÊ§È«¾Ö³õÊ¼»¯¡£ */
 				if (prog->main_block) {
 					IrNode *p = prog->main_block;
@@ -339,7 +360,13 @@ Program *parser_parse(Compiler *c) {
 				d->name_len = name_len;
 				d->params = params;
 				d->param_lens = param_lens;
+				d->param_types = param_types;
+				d->param_type_explicit = param_type_explicit;
 				d->param_count = param_count;
+				d->return_type = return_type;
+				d->return_type_explicit = return_type_explicit;
+				d->line = def_token.line;
+				d->col = def_token.col;
 				d->body = body;
 				if (impl_owner)
 					prog_add_method(prog, impl_owner, source_method_name, source_method_len,
@@ -511,6 +538,7 @@ Program *parser_parse(Compiler *c) {
 			lexer_expect(TOK_RBRACE);
 			Def *d = arena_alloc(&comp->prog->ir_arena, sizeof(Def));
 			memset(d, 0, sizeof(Def));
+			d->line = lexer_cur()->line; d->col = lexer_cur()->col;
 			d->name = ename;
 			d->name_len = elen;
 			d->params = params;
@@ -534,6 +562,9 @@ Program *parser_parse(Compiler *c) {
 			if (!lexer_at(TOK_ID)) { mira_error(comp->src, comp->filename, lexer_cur()->line, lexer_cur()->col, 1, "'const' expects an identifier name"); }
 			char *cname = lexer_cur()->start;
 			size_t clen = lexer_cur()->len;
+			MiraType declared_type = MIRA_TYPE_UNKNOWN;
+			bool declared_type_explicit = false;
+			int const_slot = -1;
 			lexer_advance();
 			if (current_syntax_mode == 1) {
 				if (lexer_at(TOK_COLON)) {
@@ -541,7 +572,8 @@ Program *parser_parse(Compiler *c) {
 					if (!lexer_at(TOK_ID))
 						mira_error(comp->src, comp->filename, lexer_cur()->line,
 							lexer_cur()->col, 1, "constant type name expected after ':'");
-					lexer_advance();
+					declared_type = parse_declared_type(false);
+					declared_type_explicit = true;
 				}
 				if (!(lexer_at(TOK_ID) && lexer_cur()->len == 1 && lexer_cur()->start[0] == '='))
 					mira_error(comp->src, comp->filename, lexer_cur()->line,
@@ -551,23 +583,26 @@ Program *parser_parse(Compiler *c) {
 				lexer_expect(TOK_COLON);
 			}
 			if (lexer_at(TOK_INT)) {
-				prog_add_const(prog, cname, clen, CONST_INT, lexer_cur()->val, 0, NULL, 0);
+				const_slot = prog_add_const(prog, cname, clen, CONST_INT, lexer_cur()->val, 0, NULL, 0);
 				lexer_advance();
 			} else if (lexer_at(TOK_FLOAT)) {
-				prog_add_const(prog, cname, clen, CONST_DOUBLE, 0, lexer_cur()->dbl, NULL, 0);
+				const_slot = prog_add_const(prog, cname, clen, CONST_DOUBLE, 0, lexer_cur()->dbl, NULL, 0);
 				lexer_advance();
 			} else if (lexer_at(TOK_STR)) {
-				prog_add_const(prog, cname, clen, CONST_STR, 0, 0, lexer_cur()->str, lexer_cur()->str_len);
+				const_slot = prog_add_const(prog, cname, clen, CONST_STR, 0, 0, lexer_cur()->str, lexer_cur()->str_len);
 				lexer_advance();
 			} else {
 				mira_error(comp->src, comp->filename, lexer_cur()->line, lexer_cur()->col, 1, "'const' expects a number or string after ':'");
 			}
+			if (declared_type_explicit)
+				prog_set_const_type(prog, const_slot, declared_type, true);
 			continue;
 		}
 
 		/* Mira 6 typed foreign declaration: extern fn symbol(a: i64) -> i64; */
 		if (lexer_at(TOK_ID) && lexer_cur()->len == 6 &&
 		    memcmp(lexer_cur()->start, "extern", 6) == 0 && token_is_followed_by_fn(lexer_cur())) {
+			Token def_token = *lexer_cur();
 			lexer_advance();
 			if (!(lexer_at(TOK_ID) && lexer_cur()->len == 2 &&
 			      memcmp(lexer_cur()->start, "fn", 2) == 0))
@@ -588,6 +623,10 @@ Program *parser_parse(Compiler *c) {
 			int cap = 4, count = 0;
 			char **params = arena_alloc(&prog->ir_arena, (size_t)cap * sizeof(char *));
 			size_t *param_lens = arena_alloc(&prog->ir_arena, (size_t)cap * sizeof(size_t));
+			MiraType *param_types = arena_alloc(&prog->ir_arena, (size_t)cap * sizeof(MiraType));
+			unsigned char *param_type_explicit = arena_alloc(&prog->ir_arena, (size_t)cap);
+			memset(param_types, 0, (size_t)cap * sizeof(MiraType));
+			memset(param_type_explicit, 0, (size_t)cap);
 			while (!lexer_at(TOK_RPAREN) && !lexer_at(TOK_EOF)) {
 				if (!lexer_at(TOK_ID))
 					mira_error(comp->src, comp->filename, lexer_cur()->line, lexer_cur()->col,
@@ -596,9 +635,16 @@ Program *parser_parse(Compiler *c) {
 					int next_cap = cap * 2;
 					char **next_params = arena_alloc(&prog->ir_arena, (size_t)next_cap * sizeof(char *));
 					size_t *next_lens = arena_alloc(&prog->ir_arena, (size_t)next_cap * sizeof(size_t));
+					MiraType *next_types = arena_alloc(&prog->ir_arena, (size_t)next_cap * sizeof(MiraType));
+					unsigned char *next_explicit = arena_alloc(&prog->ir_arena, (size_t)next_cap);
+					memset(next_types, 0, (size_t)next_cap * sizeof(MiraType));
+					memset(next_explicit, 0, (size_t)next_cap);
 					memcpy(next_params, params, (size_t)count * sizeof(char *));
 					memcpy(next_lens, param_lens, (size_t)count * sizeof(size_t));
-					params = next_params; param_lens = next_lens; cap = next_cap;
+					memcpy(next_types, param_types, (size_t)count * sizeof(MiraType));
+					memcpy(next_explicit, param_type_explicit, (size_t)count);
+					params = next_params; param_lens = next_lens;
+					param_types = next_types; param_type_explicit = next_explicit; cap = next_cap;
 				}
 				params[count] = lexer_cur()->start;
 				param_lens[count++] = lexer_cur()->len;
@@ -607,20 +653,24 @@ Program *parser_parse(Compiler *c) {
 				if (!lexer_at(TOK_ID))
 					mira_error(comp->src, comp->filename, lexer_cur()->line, lexer_cur()->col,
 						1, "extern parameter type expected");
-				lexer_advance();
+				param_types[count - 1] = parse_declared_type(false);
+				param_type_explicit[count - 1] = 1;
 				if (lexer_at(TOK_COMMA)) lexer_advance();
 				else if (!lexer_at(TOK_RPAREN))
 					mira_error(comp->src, comp->filename, lexer_cur()->line, lexer_cur()->col,
 						1, "expected ',' or ')' in extern declaration");
 			}
 			lexer_expect(TOK_RPAREN);
+			MiraType return_type = MIRA_TYPE_UNKNOWN;
+			unsigned char return_type_explicit = 0;
 			if (lexer_at(TOK_ID) && lexer_cur()->len == 2 &&
 			    memcmp(lexer_cur()->start, "->", 2) == 0) {
 				lexer_advance();
 				if (!lexer_at(TOK_ID))
 					mira_error(comp->src, comp->filename, lexer_cur()->line, lexer_cur()->col,
 						1, "extern return type expected");
-				lexer_advance();
+				return_type = parse_declared_type(true);
+				return_type_explicit = 1;
 			}
 			if (!(lexer_at(TOK_ID) && lexer_cur()->len == 1 && lexer_cur()->start[0] == ';'))
 				mira_error(comp->src, comp->filename, lexer_cur()->line, lexer_cur()->col,
@@ -630,6 +680,9 @@ Program *parser_parse(Compiler *c) {
 			memset(d, 0, sizeof(*d));
 			d->name = name; d->name_len = name_len;
 			d->params = params; d->param_lens = param_lens; d->param_count = count;
+			d->param_types = param_types; d->param_type_explicit = param_type_explicit;
+			d->return_type = return_type; d->return_type_explicit = return_type_explicit;
+			d->line = def_token.line; d->col = def_token.col;
 			d->is_extern = true;
 			if (!prog->defs) prog->defs = d;
 			else { Def *tail = prog->defs; while (tail->next) tail = tail->next; tail->next = d; }
@@ -649,6 +702,7 @@ Program *parser_parse(Compiler *c) {
 
 			Def *d = arena_alloc(&comp->prog->ir_arena, sizeof(Def));
 			memset(d, 0, sizeof(Def));
+			d->line = lexer_cur()->line; d->col = lexer_cur()->col;
 			d->name = name;
 			d->name_len = name_len;
 			d->is_extern = true;
@@ -700,6 +754,7 @@ Program *parser_parse(Compiler *c) {
 			
 			Def *d = arena_alloc(&comp->prog->ir_arena, sizeof(Def));
 			memset(d, 0, sizeof(Def));
+			d->line = lexer_cur()->line; d->col = lexer_cur()->col;
 			d->name = name;
 			d->name_len = name_len;
 			d->next = NULL;
@@ -779,6 +834,7 @@ Program *parser_parse(Compiler *c) {
 			/* é–¸æ°¾ç®‘é¨îˆžå¼°é¡–æ°¬æ¯é–ºä½¹æ¾˜é£ç‚¬ç¨Šæ¾¶æ¶šçª—name: { params } body é–¹?name: { body } */
 			Def *d = arena_alloc(&comp->prog->ir_arena, sizeof(Def));
 			memset(d, 0, sizeof(Def));
+			d->line = lexer_cur()->line; d->col = lexer_cur()->col;
 			d->name = name;
 			d->name_len = name_len;
 			d->next = NULL;

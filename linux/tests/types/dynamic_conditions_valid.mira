@@ -1,0 +1,9 @@
+fn main() -> void {
+    mut flag: bool = true;
+    mut count: i64 = 0;
+    while (flag) { count += 1; flag = false; }
+    let start: i64 = 0;
+    let end: i64 = 2;
+    for index in start + 0..end + 0 { count += index; }
+    print(count);
+}

@@ -1,0 +1,4 @@
+fn choose(flag: bool, left: i64, right: i64) -> i64 {
+    if (flag) { left } else { right }
+}
+fn main() -> void { print(choose(true, 7, 9)); }

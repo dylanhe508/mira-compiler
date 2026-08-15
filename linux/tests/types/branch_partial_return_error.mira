@@ -1,0 +1,2 @@
+fn partial(flag: bool) -> i64 { if (flag) { return 1; } }
+fn main() { print(partial(false)); }

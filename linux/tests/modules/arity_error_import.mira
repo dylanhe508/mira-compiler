@@ -1,0 +1,2 @@
+import arity_error_dep as dep;
+fn main() { print(dep.bad()); }

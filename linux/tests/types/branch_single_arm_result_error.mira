@@ -1,0 +1,2 @@
+fn maybe(flag: bool) -> i64 { if (flag) { 1 } }
+fn main() { print(maybe(false)); }

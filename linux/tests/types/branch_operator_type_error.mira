@@ -1,0 +1,5 @@
+fn combine(flag: bool) -> i64 {
+    if (flag) { 1 } else { "bad" }
+    1 +
+}
+fn main() { print(combine(true)); }
