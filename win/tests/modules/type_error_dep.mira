@@ -1,0 +1,3 @@
+fn helper() { 0 }
+
+fn bad() -> str { 42 }

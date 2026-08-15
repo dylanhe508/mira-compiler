@@ -1,0 +1,3 @@
+fn legacy(value) { value }
+fn typed(value: f64) -> f64 { value }
+fn main() { drop(typed(legacy(1))); }

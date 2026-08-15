@@ -1,0 +1,2 @@
+fn missing() -> i64 {}
+fn main() { print(missing()); }

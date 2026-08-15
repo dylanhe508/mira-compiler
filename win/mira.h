@@ -63,7 +63,12 @@ struct IrNode {
 		int64_t  i;
 		double   d;     /* IR_FLOAT */
 		struct { char *s; size_t len; } str;
-		struct { char *name; size_t len; } word;
+		struct {
+			char *name;
+			size_t len;
+			unsigned char has_call_arity;
+			int call_argc;
+		} word;
 		int      var_slot;   /* IR_VAR锛氬彉閲忔Ы浣嶄笅??*/
 		int      const_slot; /* IR_CONST锛氬父閲忔Ы浣嶄笅??*/
 		IrNode *block;   /* 閸ф鍞寸粭顑跨閺夆槄绱濋悽?next 娑撹尪锟?*/
@@ -80,6 +85,9 @@ struct IrNode {
 		struct { char **params; size_t *param_lens; int param_count; IrNode *body; } lambda;
 	} u;
 	IrNode *next;
+	const char *source;
+	const char *source_filename;
+	size_t source_offset;
 };
 
 typedef struct Def {
@@ -159,8 +167,19 @@ typedef struct {
 	size_t import_count;
 	size_t import_cap;
 } ModuleTable;
+
+typedef struct MiraSourceInfo {
+	const char *source;
+	size_t source_len;
+	const char *filename;
+	const char *module_path;
+	size_t module_path_len;
+	struct MiraSourceInfo *next;
+} MiraSourceInfo;
+
 typedef struct Program {
 	Arena ir_arena;
+	MiraSourceInfo *source_infos;
 	Pragma *pragmas;
 	Def *defs;
 	MiraType main_return_type;

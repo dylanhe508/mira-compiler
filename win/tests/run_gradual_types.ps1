@@ -14,7 +14,7 @@ foreach ($path in @($Mira, $types)) {
     if (-not (Test-Path -LiteralPath $path)) { throw "missing required path: $path" }
 }
 
-function Expect-Compile-Error([string]$name, [string]$fragment) {
+function Expect-Compile-Error([string]$name, [string]$fragment, [string]$location = '') {
     Push-Location $types
     try {
         $savedPreference = $ErrorActionPreference
@@ -25,6 +25,9 @@ function Expect-Compile-Error([string]$name, [string]$fragment) {
         if ($exitCode -eq 0) { throw "$name unexpectedly compiled" }
         if ($message -notmatch [regex]::Escape($fragment)) {
             throw "$name missing diagnostic '$fragment': $message"
+        }
+        if ($location -and $message -notmatch [regex]::Escape($location)) {
+            throw "$name missing location '$location': $message"
         }
     } finally {
         $ErrorActionPreference = 'Stop'
@@ -71,10 +74,25 @@ if ($Group -eq 'declarations') {
 }
 
 if ($Group -eq 'calls') {
+    Expect-Compile-Error 'call_extra_argument_error' "expects 1 arguments, got 2" 'Line 2, Column 19'
+    Expect-Compile-Error 'call_zero_arity_error' "expects 0 arguments, got 1" 'Line 2, Column 19'
+    Expect-Compile-Error 'call_nested_arity_error' "expects 2 arguments, got 1" 'Line 3, Column 28'
+    Expect-Compile-Error 'call_string_paren_arity_error' "expects 1 arguments, got 2" 'Line 2, Column 19'
+    Expect-Compile-Error 'call_comment_arity_error' "expects 2 arguments, got 3" 'Line 3, Column 19'
+    Expect-Compile-Error 'call_list_arity_error' "expects 2 arguments, got 3"
+    Expect-Compile-Error 'list_void_value_error' 'returns void and cannot be used as a value'
+    Expect-Compile-Error 'condition_void_value_error' 'returns void and cannot be used as a value'
+    Expect-Compile-Error 'void_later_argument_error' 'returns void and cannot be used as a value'
+    Expect-Compile-Error 'branch_void_result_error' 'returns void and cannot be used as a value'
+    Expect-Compile-Error 'branch_tail_type_error' "function 'choose': expected i64, got str"
+    Expect-Compile-Error 'branch_single_arm_result_error' "function 'maybe': expected i64, got void"
+    Expect-Compile-Error 'branch_partial_return_error' "function 'partial': expected i64, got void"
+    Expect-Compile-Error 'missing_result_error' "function 'missing': expected i64, got void"
     Expect-Compile-Error 'void_value_error' 'returns void and cannot be used as a value'
     Expect-Compile-Error 'return_type_error' "function 'label': expected str, got i64"
     Expect-Compile-Error 'call_arity_error' "expects 2 arguments, got 1"
     Expect-Compile-Error 'call_argument_type_error' "argument 1 of 'square': expected f64, got i64"
+    Expect-Compile-Error 'extern_signature_error' "argument 1 of 'mira_abs': expected f64, got i64"
 
     Push-Location $types
     try {
@@ -83,6 +101,20 @@ if ($Group -eq 'calls') {
         $actual = ((& (Join-Path $types 'extern_signature_valid.exe')) -join "`n").Trim()
         if ($LASTEXITCODE -ne 0) { throw 'extern_signature_valid O0 run failed' }
         if ($actual -ne '42') { throw "extern_signature_valid output '$actual', expected '42'" }
+    } finally {
+        Pop-Location
+    }
+
+    Push-Location $types
+    try {
+        & $Mira -O0 'legacy_nested_valid.mira' | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw 'legacy_nested_valid O0 compile failed' }
+
+        & $Mira -O0 'branch_all_paths_return_valid.mira' | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw 'branch_all_paths_return_valid O0 compile failed' }
+        $actual = ((& (Join-Path $types 'branch_all_paths_return_valid.exe')) -join "`n").Trim()
+        if ($LASTEXITCODE -ne 0) { throw 'branch_all_paths_return_valid O0 run failed' }
+        if ($actual -ne '1') { throw "branch_all_paths_return_valid output '$actual', expected '1'" }
     } finally {
         Pop-Location
     }

@@ -1,0 +1,2 @@
+fn log(value: i64) -> void { print(value); }
+fn main() { let values = [eval(log(1))]; print(0); }

@@ -64,7 +64,31 @@ static void prog_set_var_type(Program *prog, int slot, MiraType type, bool is_ex
 	prog->var_type_explicit[slot] = is_explicit ? 1 : 0;
 }
 
+static void prog_note_source(Program *prog) {
+	if (!comp->src) return;
+	for (MiraSourceInfo *info = prog->source_infos; info; info = info->next)
+		if (info->source == comp->src) return;
+	MiraSourceInfo *info = arena_alloc(&prog->ir_arena, sizeof(*info));
+	memset(info, 0, sizeof(*info));
+	info->source = comp->src;
+	info->source_len = strlen(comp->src);
+	if (comp->filename) {
+		size_t filename_len = strlen(comp->filename);
+		char *filename = arena_alloc(&prog->ir_arena, filename_len + 1);
+		memcpy(filename, comp->filename, filename_len + 1);
+		info->filename = filename;
+	}
+	if (comp->current_module < comp->modules.module_count) {
+		ModuleRecord *module = &comp->modules.modules[comp->current_module];
+		info->module_path = module->path;
+		info->module_path_len = module->path_len;
+	}
+	info->next = prog->source_infos;
+	prog->source_infos = info;
+}
+
 static MiraType parse_declared_type(bool allow_void) {
+	prog_note_source(comp->prog);
 	Token token = *lexer_cur();
 	MiraType type = MIRA_TYPE_UNKNOWN;
 	if (!mira_type_from_name(token.start, token.len, &type) || type == MIRA_TYPE_UNKNOWN)
@@ -205,11 +229,21 @@ static int prog_const_slot(Program *prog, const char *name, size_t len) {
 }
 
 static IrNode *new_ir(IrKind k) {
+	prog_note_source(comp->prog);
 	IrNode *o = arena_alloc(&comp->prog->ir_arena, sizeof(IrNode));
 	memset(o, 0, sizeof(IrNode));
 	o->kind = k;
 	o->line = lexer_cur()->line;
 	o->col = lexer_cur()->col;
+	o->source = comp->src;
+	if (lexer_cur()->start >= comp->src)
+		o->source_offset = (size_t)(lexer_cur()->start - comp->src);
+	if (comp->filename) {
+		size_t filename_len = strlen(comp->filename);
+		char *filename = arena_alloc(&comp->prog->ir_arena, filename_len + 1);
+		memcpy(filename, comp->filename, filename_len + 1);
+		o->source_filename = filename;
+	}
 	return o;
 }
 

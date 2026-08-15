@@ -1,0 +1,2 @@
+import missing_result_dep as dep;
+fn main() { print(dep.missing()); }

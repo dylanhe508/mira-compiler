@@ -1,0 +1,2 @@
+fn log(value: i64) -> void { print(value); }
+fn main() { if (log(1)) { print(2); } }

@@ -1,0 +1,2 @@
+fn pair(left: i64, right: i64) -> i64 { left + right }
+fn bad() -> i64 { pair(1, 2, 3) }
