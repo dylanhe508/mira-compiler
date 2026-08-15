@@ -68,6 +68,7 @@ struct IrNode {
 			size_t len;
 			unsigned char has_call_arity;
 			unsigned char call_boundary_mode;
+			unsigned char logical_booleanize;
 			int call_argc;
 			size_t call_close_offset;
 		} word;

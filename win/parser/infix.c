@@ -709,6 +709,7 @@ static IrNode *logical_booleanize(IrNode *value) {
 	while (tail->next) tail = tail->next;
 	IrNode *zero = new_ir(IR_INT); zero->u.i = 0;
 	IrNode *ne = new_ir(IR_WORD); ne->u.word.name = "!="; ne->u.word.len = 2;
+	ne->u.word.logical_booleanize = 1;
 	tail->next = zero; zero->next = ne;
 	return value;
 }

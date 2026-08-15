@@ -190,6 +190,11 @@ if ($Group -in @('all', 'expressions')) {
     Expect-Compile-Error 'logical_and_right_type_error' 'condition: expected bool, got i64'
     Expect-Compile-Error 'logical_or_left_type_error' 'condition: expected bool, got i64'
     Expect-Compile-Error 'logical_or_right_type_error' 'condition: expected bool, got i64'
+    Expect-Compile-Error 'ptr_string_equality_type_error' 'expected matching types, got ptr and str'
+    Expect-Compile-Error 'ptr_i64_equality_type_error' 'expected matching types, got ptr and i64'
+    Expect-Compile-Error 'ptr_string_inequality_type_error' 'expected matching types, got ptr and str'
+    Expect-Compile-Error 'ptr_ordered_type_error' 'expected numeric type, got ptr'
+    Expect-Compile-Error 'str_i64_ordered_type_error' 'expected numeric type, got str'
 
     Push-Location $types
     try {
@@ -200,7 +205,8 @@ if ($Group -in @('all', 'expressions')) {
             @{ Name = 'operator_matrix_valid'; Expected = "-5`n1" },
             @{ Name = 'while_true_valid'; Expected = '7' },
             @{ Name = 'legacy_while_one_valid'; Expected = '7' },
-            @{ Name = 'dynamic_conditions_valid'; Expected = '2' }
+            @{ Name = 'dynamic_conditions_valid'; Expected = '2' },
+            @{ Name = 'comparison_types_valid'; Expected = "1`n1`n1`n1" }
         )) {
             & $Mira -O0 "$($expressionCase.Name).mira" | Out-Host
             if ($LASTEXITCODE -ne 0) { throw "$($expressionCase.Name) O0 compile failed" }

@@ -1,0 +1,2 @@
+fn bad(left: ptr, right: i64) -> bool { left == right }
+fn main() -> void {}

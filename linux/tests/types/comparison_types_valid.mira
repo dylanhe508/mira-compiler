@@ -1,0 +1,15 @@
+import std.memory as memory;
+
+fn same_pointer(left: ptr, right: ptr) -> bool { left == right }
+fn same_string(value: str) -> bool { value == value }
+fn ordered_i64(left: i64, right: i64) -> bool { left < right }
+fn ordered_f64(left: f64, right: f64) -> bool { left < right }
+
+fn main() -> void {
+    let pointer: ptr = memory.allocate(8);
+    print(same_pointer(pointer, pointer));
+    print(same_string("typed"));
+    print(ordered_i64(1, 2));
+    print(ordered_f64(1.5, 2.5));
+    memory.free(pointer);
+}

@@ -101,6 +101,7 @@ typedef enum MiraType {
     MIRA_TYPE_F64,
     MIRA_TYPE_BOOL,
     MIRA_TYPE_STR,
+    MIRA_TYPE_PTR,
     MIRA_TYPE_VOID
 } MiraType;
 

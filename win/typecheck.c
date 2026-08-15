@@ -541,6 +541,24 @@ static void checker_operator_type_error(MiraTypeChecker *checker,
 		mira_type_name(left.type), mira_type_name(right.type));
 }
 
+static void checker_operator_equality_type_error(MiraTypeChecker *checker,
+	const IrNode *node, MiraCheckedValue left, MiraCheckedValue right) {
+	mira_error(node->source ? node->source : checker->compiler->src,
+		node->source_filename ? node->source_filename : checker->compiler->filename,
+		node->line, node->col, 1,
+		"operator %.*s: expected matching types, got %s and %s",
+		(int)node->u.word.len, node->u.word.name,
+		mira_type_name(left.type), mira_type_name(right.type));
+}
+
+static bool checker_equality_word(const IrNode *node) {
+	if (node->kind == IR_WORD && node->u.word.len == 2 &&
+	    node->u.word.name[0] == '=' && node->u.word.name[1] == '\0')
+		return true;
+	return word_is(node, "=") || word_is(node, "==") || word_is(node, "!=") ||
+		word_is(node, "eq") || word_is(node, "ne");
+}
+
 static void checker_binary_shape(MiraTypeChecker *checker, const IrNode *node,
 	bool comparison) {
 	if (checker->value_count < 2) return;
@@ -548,7 +566,34 @@ static void checker_binary_shape(MiraTypeChecker *checker, const IrNode *node,
 	MiraCheckedValue left = checker_pop(checker);
 	if (checker_value_has_type(left, MIRA_TYPE_VOID)) checker_void_value_error(checker, left);
 	if (checker_value_has_type(right, MIRA_TYPE_VOID)) checker_void_value_error(checker, right);
-	if (checker->strict_context && !comparison) {
+	if (checker->strict_context && comparison && checker_equality_word(node) &&
+	    !node->u.word.logical_booleanize) {
+		unsigned left_mask = checker_candidate_mask(left);
+		unsigned right_mask = checker_candidate_mask(right);
+		MiraType mismatch_left = MIRA_TYPE_UNKNOWN;
+		MiraType mismatch_right = MIRA_TYPE_UNKNOWN;
+		for (MiraType left_type = MIRA_TYPE_I64;
+		     left_type <= MIRA_TYPE_VOID && mismatch_left == MIRA_TYPE_UNKNOWN;
+		     ++left_type) {
+			if (!(left_mask & (1u << left_type))) continue;
+			for (MiraType right_type = MIRA_TYPE_I64;
+			     right_type <= MIRA_TYPE_VOID; ++right_type) {
+				if ((right_mask & (1u << right_type)) && left_type != right_type) {
+					mismatch_left = left_type;
+					mismatch_right = right_type;
+					break;
+				}
+			}
+		}
+		if (mismatch_left != MIRA_TYPE_UNKNOWN) {
+			left = checker_value_origin(left, mismatch_left);
+			right = checker_value_origin(right, mismatch_right);
+			left.type = mismatch_left;
+			right.type = mismatch_right;
+			checker_operator_equality_type_error(checker, node, left, right);
+		}
+	}
+	if (checker->strict_context && (!comparison || !checker_equality_word(node))) {
 		MiraType invalid = checker_first_non_numeric(left);
 		if (invalid != MIRA_TYPE_UNKNOWN)
 			checker_operator_single_type_error(checker, node, left, invalid,
