@@ -1,0 +1,4 @@
+fn choose(flag: bool, value: i64) -> bool {
+    if (flag) { 1 } else { value != 0 }
+}
+fn main() { print(choose(true, 1)); }

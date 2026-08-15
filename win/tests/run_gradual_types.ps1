@@ -156,12 +156,30 @@ if ($Group -eq 'expressions') {
     Expect-Compile-Error 'mixed_numeric_error' 'operator +: expected matching numeric types, got i64 and f64'
     Expect-Compile-Error 'condition_type_error' 'condition: expected bool, got i64'
     Expect-Compile-Error 'branch_type_error' "function 'choose': expected i64, got str"
+    Expect-Compile-Error 'branch_operator_type_error' 'operator +: expected numeric type, got str' 'Line 2,'
+    Expect-Compile-Error 'postfix_and_type_error' 'operator and: expected bool, got i64'
+    Expect-Compile-Error 'postfix_or_type_error' 'operator or: expected bool, got i64'
+    Expect-Compile-Error 'postfix_xor_type_error' 'operator xor: expected bool, got i64'
+    Expect-Compile-Error 'postfix_not_type_error' 'operator not: expected bool, got i64'
+    Expect-Compile-Error 'neg_string_type_error' 'operator neg: expected numeric type, got str'
+    Expect-Compile-Error 'while_one_type_error' 'condition: expected bool, got i64'
+    Expect-Compile-Error 'while_zero_type_error' 'condition: expected bool, got i64'
+    Expect-Compile-Error 'ordinary_if_shape_type_error' "function 'choose': expected bool, got i64"
+    Expect-Compile-Error 'logical_and_left_type_error' 'condition: expected bool, got i64'
+    Expect-Compile-Error 'logical_and_right_type_error' 'condition: expected bool, got i64'
+    Expect-Compile-Error 'logical_or_left_type_error' 'condition: expected bool, got i64'
+    Expect-Compile-Error 'logical_or_right_type_error' 'condition: expected bool, got i64'
 
     Push-Location $types
     try {
         foreach ($expressionCase in @(
             @{ Name = 'scalars_valid'; Expected = '7' },
-            @{ Name = 'legacy_truthiness_valid'; Expected = '7' }
+            @{ Name = 'legacy_truthiness_valid'; Expected = '7' },
+            @{ Name = 'postfix_bool_valid'; Expected = '-2' },
+            @{ Name = 'operator_matrix_valid'; Expected = '1' },
+            @{ Name = 'while_true_valid'; Expected = '7' },
+            @{ Name = 'legacy_while_one_valid'; Expected = '7' },
+            @{ Name = 'dynamic_conditions_valid'; Expected = '2' }
         )) {
             & $Mira -O0 "$($expressionCase.Name).mira" | Out-Host
             if ($LASTEXITCODE -ne 0) { throw "$($expressionCase.Name) O0 compile failed" }

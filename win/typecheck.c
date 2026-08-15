@@ -106,6 +106,19 @@ static void checker_push(MiraTypeChecker *checker, MiraType type, bool strict,
 	checker->values[checker->value_count++] = value;
 }
 
+static void checker_push_value(MiraTypeChecker *checker,
+	MiraCheckedValue value) {
+	if (checker->value_count == checker->value_cap) {
+		int next_cap = checker->value_cap ? checker->value_cap * 2 : 16;
+		MiraCheckedValue *next = realloc(checker->values,
+			(size_t)next_cap * sizeof(*next));
+		if (!next) mira_error_simple(1, "out of memory in type checker");
+		checker->values = next;
+		checker->value_cap = next_cap;
+	}
+	checker->values[checker->value_count++] = value;
+}
+
 static void checker_push_void(MiraTypeChecker *checker, Def *callee,
 	const IrNode *origin) {
 	checker_push(checker, MIRA_TYPE_VOID, true, origin);
@@ -485,8 +498,37 @@ static int checker_param_slot(const MiraTypeChecker *checker,
 	return -1;
 }
 
+static MiraCheckedValue checker_merge_value(MiraCheckedValue left,
+	MiraCheckedValue right);
+
 static bool checker_numeric_type(MiraType type) {
 	return type == MIRA_TYPE_I64 || type == MIRA_TYPE_F64;
+}
+
+static unsigned checker_candidate_mask(MiraCheckedValue value) {
+	unsigned mask = value.type_mask;
+	if (value.type > MIRA_TYPE_UNKNOWN && value.type <= MIRA_TYPE_VOID)
+		mask |= 1u << value.type;
+	return mask;
+}
+
+static MiraType checker_first_non_numeric(MiraCheckedValue value) {
+	unsigned mask = checker_candidate_mask(value);
+	for (MiraType type = MIRA_TYPE_I64; type <= MIRA_TYPE_VOID; ++type)
+		if ((mask & (1u << type)) && !checker_numeric_type(type)) return type;
+	return MIRA_TYPE_UNKNOWN;
+}
+
+static void checker_operator_single_type_error(MiraTypeChecker *checker,
+	const IrNode *node, MiraCheckedValue value, MiraType actual,
+	const char *expected) {
+	value = checker_value_origin(value, actual);
+	mira_error(value.source ? value.source : checker->compiler->src,
+		value.source_filename ? value.source_filename : checker->compiler->filename,
+		value.line, value.col, 1,
+		"operator %.*s: expected %s, got %s",
+		(int)node->u.word.len, node->u.word.name, expected,
+		mira_type_name(actual));
 }
 
 static void checker_operator_type_error(MiraTypeChecker *checker,
@@ -506,21 +548,56 @@ static void checker_binary_shape(MiraTypeChecker *checker, const IrNode *node,
 	MiraCheckedValue left = checker_pop(checker);
 	if (checker_value_has_type(left, MIRA_TYPE_VOID)) checker_void_value_error(checker, left);
 	if (checker_value_has_type(right, MIRA_TYPE_VOID)) checker_void_value_error(checker, right);
-	if (checker->strict_context && !comparison &&
-	    left.type != MIRA_TYPE_UNKNOWN && right.type != MIRA_TYPE_UNKNOWN &&
-	    (!checker_numeric_type(left.type) || !checker_numeric_type(right.type) ||
-	     left.type != right.type))
-		checker_operator_type_error(checker, node, left, right);
+	if (checker->strict_context && !comparison) {
+		MiraType invalid = checker_first_non_numeric(left);
+		if (invalid != MIRA_TYPE_UNKNOWN)
+			checker_operator_single_type_error(checker, node, left, invalid,
+				"numeric type");
+		invalid = checker_first_non_numeric(right);
+		if (invalid != MIRA_TYPE_UNKNOWN)
+			checker_operator_single_type_error(checker, node, right, invalid,
+				"numeric type");
+		unsigned left_mask = checker_candidate_mask(left) &
+			((1u << MIRA_TYPE_I64) | (1u << MIRA_TYPE_F64));
+		unsigned right_mask = checker_candidate_mask(right) &
+			((1u << MIRA_TYPE_I64) | (1u << MIRA_TYPE_F64));
+		MiraType mismatch_left = MIRA_TYPE_UNKNOWN;
+		MiraType mismatch_right = MIRA_TYPE_UNKNOWN;
+		for (MiraType left_type = MIRA_TYPE_I64;
+		     left_type <= MIRA_TYPE_F64 && mismatch_left == MIRA_TYPE_UNKNOWN;
+		     ++left_type) {
+			if (!(left_mask & (1u << left_type))) continue;
+			for (MiraType right_type = MIRA_TYPE_I64;
+			     right_type <= MIRA_TYPE_F64; ++right_type) {
+				if ((right_mask & (1u << right_type)) && left_type != right_type) {
+					mismatch_left = left_type;
+					mismatch_right = right_type;
+					break;
+				}
+			}
+		}
+		if (mismatch_left != MIRA_TYPE_UNKNOWN) {
+			checker_operator_type_error(checker, node,
+				checker_value_origin(left, mismatch_left),
+				checker_value_origin(right, mismatch_right));
+		}
+	}
 	MiraType result = comparison ? MIRA_TYPE_BOOL :
 		(left.type == right.type ? left.type : MIRA_TYPE_UNKNOWN);
-	checker_push(checker, result,
-		comparison || left.strict || right.strict, node);
+	if (comparison) {
+		checker_push(checker, result, true, node);
+	} else {
+		MiraCheckedValue combined = checker_merge_value(left, right);
+		combined.type = result;
+		combined.strict = left.strict || right.strict;
+		checker_push_value(checker, combined);
+	}
 }
 
 static bool checker_is_binary_word(const IrNode *node, bool *comparison) {
 	static const char *arithmetic[] = {
 		"+", "-", "*", "/", "%", "&", "|", "^", "<<", ">>",
-		"and", "or", "mod", NULL
+		"mod", NULL
 	};
 	static const char *comparisons[] = {
 		"=", "==", "!=", "<", ">", "<=", ">=",
@@ -544,6 +621,44 @@ static bool checker_is_binary_word(const IrNode *node, bool *comparison) {
 		}
 	}
 	return false;
+}
+
+static void checker_check_bool_operator(MiraTypeChecker *checker,
+	const IrNode *node, bool unary) {
+	if (checker->value_count < (unary ? 1 : 2)) return;
+	MiraCheckedValue right = checker_pop(checker);
+	MiraCheckedValue left = unary ? right : checker_pop(checker);
+	if (checker_value_has_type(left, MIRA_TYPE_VOID))
+		checker_void_value_error(checker, left);
+	if (!unary && checker_value_has_type(right, MIRA_TYPE_VOID))
+		checker_void_value_error(checker, right);
+	if (checker->strict_context) {
+		MiraType mismatch = checker_first_mismatch(left, MIRA_TYPE_BOOL);
+		if (mismatch != MIRA_TYPE_UNKNOWN)
+			checker_operator_single_type_error(checker, node, left, mismatch,
+				"bool");
+		if (!unary) {
+			mismatch = checker_first_mismatch(right, MIRA_TYPE_BOOL);
+			if (mismatch != MIRA_TYPE_UNKNOWN)
+				checker_operator_single_type_error(checker, node, right, mismatch,
+					"bool");
+		}
+	}
+	checker_push(checker, MIRA_TYPE_BOOL, true, node);
+}
+
+static void checker_check_neg(MiraTypeChecker *checker, const IrNode *node) {
+	if (checker->value_count < 1) return;
+	MiraCheckedValue value = checker_pop(checker);
+	if (checker_value_has_type(value, MIRA_TYPE_VOID))
+		checker_void_value_error(checker, value);
+	if (checker->strict_context) {
+		MiraType invalid = checker_first_non_numeric(value);
+		if (invalid != MIRA_TYPE_UNKNOWN)
+			checker_operator_single_type_error(checker, node, value, invalid,
+				"numeric type");
+	}
+	checker_push_value(checker, value);
 }
 
 static void checker_check_nodes(MiraTypeChecker *checker, IrNode *node);
@@ -688,6 +803,128 @@ static void checker_check_condition(MiraTypeChecker *parent, IrNode *node) {
 		checker_condition_type_error(&nested,
 			nested.values[nested.value_count - 1]);
 	free(nested.values);
+}
+
+static size_t checker_skip_source_space(const char *source, size_t cursor,
+	size_t limit) {
+	while (cursor < limit) {
+		if (isspace((unsigned char)source[cursor])) {
+			cursor++;
+			continue;
+		}
+		if (source[cursor] == '#') {
+			while (cursor < limit && source[cursor] != '\n') cursor++;
+			continue;
+		}
+		break;
+	}
+	return cursor;
+}
+
+static size_t checker_matching_delimiter(const char *source, size_t open,
+	char open_char, char close_char, size_t limit) {
+	int depth = 0;
+	bool in_string = false, escaped = false, in_comment = false;
+	for (size_t cursor = open; cursor < limit && source[cursor]; ++cursor) {
+		char ch = source[cursor];
+		if (in_comment) {
+			if (ch == '\n') in_comment = false;
+			continue;
+		}
+		if (in_string) {
+			if (escaped) escaped = false;
+			else if (ch == '\\') escaped = true;
+			else if (ch == '"') in_string = false;
+			continue;
+		}
+		if (ch == '#') { in_comment = true; continue; }
+		if (ch == '"') { in_string = true; continue; }
+		if (ch == open_char) depth++;
+		else if (ch == close_char && --depth == 0) return cursor;
+	}
+	return SIZE_MAX;
+}
+
+static bool checker_source_word(const char *source, size_t offset,
+	const char *word) {
+	size_t len = strlen(word);
+	if (memcmp(source + offset, word, len) != 0) return false;
+	if (offset > 0 && (isalnum((unsigned char)source[offset - 1]) ||
+	    source[offset - 1] == '_')) return false;
+	unsigned char after = (unsigned char)source[offset + len];
+	return !(isalnum(after) || after == '_');
+}
+
+static bool checker_while_inf_literal(MiraTypeChecker *checker,
+	const IrNode *node, MiraCheckedValue *out) {
+	if (!node->source || node->source_offset == 0) return false;
+	const char *source = node->source;
+	size_t limit = node->source_offset;
+	size_t best_close = 0, best_token = 0;
+	MiraType best_type = MIRA_TYPE_UNKNOWN;
+	bool in_string = false, escaped = false, in_comment = false;
+	for (size_t cursor = 0; cursor < limit && source[cursor]; ++cursor) {
+		char ch = source[cursor];
+		if (in_comment) {
+			if (ch == '\n') in_comment = false;
+			continue;
+		}
+		if (in_string) {
+			if (escaped) escaped = false;
+			else if (ch == '\\') escaped = true;
+			else if (ch == '"') in_string = false;
+			continue;
+		}
+		if (ch == '#') { in_comment = true; continue; }
+		if (ch == '"') { in_string = true; continue; }
+		if (ch != 'w' || !checker_source_word(source, cursor, "while")) continue;
+		size_t open = checker_skip_source_space(source, cursor + 5, limit);
+		if (open >= limit || source[open] != '(') continue;
+		size_t close = checker_matching_delimiter(source, open, '(', ')', limit);
+		if (close == SIZE_MAX) continue;
+		size_t token = checker_skip_source_space(source, open + 1, close);
+		size_t token_end = token;
+		MiraType type = MIRA_TYPE_UNKNOWN;
+		if (token + 4 <= close && memcmp(source + token, "true", 4) == 0) {
+			token_end = token + 4;
+			type = MIRA_TYPE_BOOL;
+		} else {
+			if (token_end < close && (source[token_end] == '+' ||
+			    source[token_end] == '-')) token_end++;
+			size_t digits = token_end;
+			while (token_end < close && isdigit((unsigned char)source[token_end]))
+				token_end++;
+			if (token_end > digits) type = MIRA_TYPE_I64;
+		}
+		if (type == MIRA_TYPE_UNKNOWN ||
+		    checker_skip_source_space(source, token_end, close) != close) continue;
+		size_t body_open = checker_skip_source_space(source, close + 1, limit);
+		if (body_open >= limit || source[body_open] != '{') continue;
+		size_t body_close = checker_matching_delimiter(source, body_open,
+			'{', '}', limit + 1);
+		/* parse_one creates IR_WHILE_INF while the lexer may still point at
+		 * the loop body's closing brace, so an equal source offset is valid. */
+		if (body_close == SIZE_MAX || body_close > limit || body_close < best_close)
+			continue;
+		best_close = body_close;
+		best_token = token;
+		best_type = type;
+	}
+	if (best_type == MIRA_TYPE_UNKNOWN) return false;
+	MiraSourceScan *scan = checker_source_scan(checker, source);
+	MiraCheckedValue value = {0};
+	value.type = best_type;
+	value.type_mask = 1u << best_type;
+	value.strict = true;
+	value.source = source;
+	value.source_filename = node->source_filename;
+	checker_source_position(scan, best_token, &value.line, &value.col);
+	value.origin_line[best_type] = value.line;
+	value.origin_col[best_type] = value.col;
+	value.origin_source[best_type] = value.source;
+	value.origin_filename[best_type] = value.source_filename;
+	*out = value;
+	return true;
 }
 
 static bool checker_same_origin(const IrNode *left, const IrNode *right) {
@@ -968,6 +1205,19 @@ static void checker_check_nodes(MiraTypeChecker *checker, IrNode *node) {
 					strict, node);
 				break;
 			}
+			if (word_is(node, "and") || word_is(node, "or") ||
+			    word_is(node, "xor")) {
+				checker_check_bool_operator(checker, node, false);
+				break;
+			}
+			if (word_is(node, "not")) {
+				checker_check_bool_operator(checker, node, true);
+				break;
+			}
+			if (word_is(node, "neg")) {
+				checker_check_neg(checker, node);
+				break;
+			}
 			Def *callee = mira_find_signature(checker->program,
 				node->u.word.name, node->u.word.len);
 			if (callee) {
@@ -1044,6 +1294,11 @@ static void checker_check_nodes(MiraTypeChecker *checker, IrNode *node) {
 			checker_check_nested(checker, node->u.each.body);
 			break;
 		case IR_WHILE_INF:
+			if (checker->strict_context) {
+				MiraCheckedValue condition;
+				if (checker_while_inf_literal(checker, node, &condition))
+					checker_condition_type_error(checker, condition);
+			}
 			checker_check_nested(checker, node->u.while_inf.body);
 			break;
 		case IR_WHILE_COND:
