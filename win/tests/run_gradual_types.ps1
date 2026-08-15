@@ -1,7 +1,7 @@
 param(
     [string]$Mira = '',
     [string]$Gcc = 'gcc',
-    [ValidateSet('declarations', 'calls')]
+    [ValidateSet('declarations', 'calls', 'expressions')]
     [string]$Group = 'declarations'
 )
 
@@ -149,4 +149,31 @@ if ($Group -eq 'calls') {
     }
 
     Write-Output 'GRADUAL TYPE CALLS PASS'
+}
+
+if ($Group -eq 'expressions') {
+    Expect-Compile-Error 'assignment_type_error' 'assignment to count: expected i64, got str'
+    Expect-Compile-Error 'mixed_numeric_error' 'operator +: expected matching numeric types, got i64 and f64'
+    Expect-Compile-Error 'condition_type_error' 'condition: expected bool, got i64'
+    Expect-Compile-Error 'branch_type_error' "function 'choose': expected i64, got str"
+
+    Push-Location $types
+    try {
+        foreach ($expressionCase in @(
+            @{ Name = 'scalars_valid'; Expected = '7' },
+            @{ Name = 'legacy_truthiness_valid'; Expected = '7' }
+        )) {
+            & $Mira -O0 "$($expressionCase.Name).mira" | Out-Host
+            if ($LASTEXITCODE -ne 0) { throw "$($expressionCase.Name) O0 compile failed" }
+            $actual = ((& (Join-Path $types "$($expressionCase.Name).exe")) -join "`n").Trim()
+            if ($LASTEXITCODE -ne 0) { throw "$($expressionCase.Name) O0 run failed" }
+            if ($actual -ne $expressionCase.Expected) {
+                throw "$($expressionCase.Name) output '$actual', expected '$($expressionCase.Expected)'"
+            }
+        }
+    } finally {
+        Pop-Location
+    }
+
+    Write-Output 'GRADUAL TYPE EXPRESSIONS PASS'
 }

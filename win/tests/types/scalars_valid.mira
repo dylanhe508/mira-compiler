@@ -1,0 +1,18 @@
+fn choose(flag: bool, value: i64) -> i64 {
+    if (flag) { value } else { 0 }
+}
+fn main() -> void {
+    let whole: i64 = 4;
+    let decimal: f64 = 2.5;
+    let text: str = "typed";
+    let enabled: bool = true;
+    mut count: i64 = whole + 1;
+    count += 1;
+    count++;
+    let matched: bool = count == 7;
+    let ready: bool = enabled && matched;
+    let chosen: i64 = choose(ready, count);
+    drop(decimal);
+    drop(text);
+    print(chosen);
+}
