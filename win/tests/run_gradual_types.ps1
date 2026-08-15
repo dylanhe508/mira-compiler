@@ -1,7 +1,7 @@
 param(
     [string]$Mira = '',
     [string]$Gcc = 'gcc',
-    [ValidateSet('declarations')]
+    [ValidateSet('declarations', 'calls')]
     [string]$Group = 'declarations'
 )
 
@@ -68,4 +68,24 @@ if ($Group -eq 'declarations') {
     Write-Output 'PROGRAM FREE TYPE METADATA PASS'
 
     Write-Output 'GRADUAL TYPE DECLARATIONS PASS'
+}
+
+if ($Group -eq 'calls') {
+    Expect-Compile-Error 'void_value_error' 'returns void and cannot be used as a value'
+    Expect-Compile-Error 'return_type_error' "function 'label': expected str, got i64"
+    Expect-Compile-Error 'call_arity_error' "expects 2 arguments, got 1"
+    Expect-Compile-Error 'call_argument_type_error' "argument 1 of 'square': expected f64, got i64"
+
+    Push-Location $types
+    try {
+        & $Mira -O0 'extern_signature_valid.mira' | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw 'extern_signature_valid O0 compile failed' }
+        $actual = ((& (Join-Path $types 'extern_signature_valid.exe')) -join "`n").Trim()
+        if ($LASTEXITCODE -ne 0) { throw 'extern_signature_valid O0 run failed' }
+        if ($actual -ne '42') { throw "extern_signature_valid output '$actual', expected '42'" }
+    } finally {
+        Pop-Location
+    }
+
+    Write-Output 'GRADUAL TYPE CALLS PASS'
 }

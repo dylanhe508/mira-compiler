@@ -15,9 +15,12 @@ typedef enum MiraType {
 
 struct Compiler;
 struct Program;
+struct Def;
 
 bool mira_type_from_name(const char *name, size_t len, MiraType *out);
 const char *mira_type_name(MiraType type);
+struct Def *mira_find_signature(struct Program *program,
+	const char *name, size_t name_len);
 void mira_typecheck_program(struct Compiler *compiler, struct Program *program);
 
 #endif
