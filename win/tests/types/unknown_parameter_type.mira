@@ -1,0 +1,2 @@
+fn bad(value: number) -> i64 { value }
+fn main() { print(0); }

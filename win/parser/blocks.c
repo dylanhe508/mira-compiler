@@ -193,6 +193,8 @@ static IrNode *parse_block_content(Program *prog) {
 			int is_decl = is_mut || is_let;
 			char *name = NULL;
 			size_t name_len = 0;
+			MiraType declared_type = MIRA_TYPE_UNKNOWN;
+			bool declared_type_explicit = false;
 			char compound_op = 0;
 			StructDef *decl_struct = NULL;
 			StructDef *field_owner = NULL;
@@ -257,7 +259,8 @@ static IrNode *parse_block_content(Program *prog) {
 					if (!lexer_at(TOK_ID))
 						mira_error(comp->src, comp->filename, lexer_cur()->line, lexer_cur()->col,
 							1, "variable type name expected after ':'");
-					lexer_advance();
+					declared_type = parse_declared_type(false);
+					declared_type_explicit = true;
 				}
 			} else if (lexer_at_peek(TOK_ID) &&
 			    ((comp->peek.len == 1 && comp->peek.start[0] == '=') ||
@@ -360,6 +363,8 @@ static IrNode *parse_block_content(Program *prog) {
 				}
 				if (is_decl && decl_struct)
 					prog_set_var_struct(prog, slot, decl_struct, is_mut);
+				if (is_decl && declared_type_explicit)
+					prog_set_var_type(prog, slot, declared_type, true);
 				/* Syntax-only lowering: x += rhs becomes x @ rhs + x ! and
 				 * therefore uses the existing SSA and optimization pipeline. */
 				if (compound_op) {
@@ -407,6 +412,9 @@ static IrNode *parse_block_content(Program *prog) {
 			if (!lexer_at(TOK_ID)) { mira_error(comp->src, comp->filename, lexer_cur()->line, lexer_cur()->col, 1, "'const' expects an identifier name"); }
 			char *cname = lexer_cur()->start;
 			size_t clen = lexer_cur()->len;
+			MiraType declared_type = MIRA_TYPE_UNKNOWN;
+			bool declared_type_explicit = false;
+			int const_slot = -1;
 			lexer_advance();
 			if (current_syntax_mode == 1) {
 				if (lexer_at(TOK_COLON)) {
@@ -414,7 +422,8 @@ static IrNode *parse_block_content(Program *prog) {
 					if (!lexer_at(TOK_ID))
 						mira_error(comp->src, comp->filename, lexer_cur()->line,
 							lexer_cur()->col, 1, "constant type name expected after ':'");
-					lexer_advance();
+					declared_type = parse_declared_type(false);
+					declared_type_explicit = true;
 				}
 				if (!(lexer_at(TOK_ID) && lexer_cur()->len == 1 && lexer_cur()->start[0] == '='))
 					mira_error(comp->src, comp->filename, lexer_cur()->line,
@@ -424,17 +433,19 @@ static IrNode *parse_block_content(Program *prog) {
 				lexer_expect(TOK_COLON);
 			}
 			if (lexer_at(TOK_INT)) {
-				prog_add_const(prog, cname, clen, CONST_INT, lexer_cur()->val, 0, NULL, 0);
+				const_slot = prog_add_const(prog, cname, clen, CONST_INT, lexer_cur()->val, 0, NULL, 0);
 				lexer_advance();
 			} else if (lexer_at(TOK_FLOAT)) {
-				prog_add_const(prog, cname, clen, CONST_DOUBLE, 0, lexer_cur()->dbl, NULL, 0);
+				const_slot = prog_add_const(prog, cname, clen, CONST_DOUBLE, 0, lexer_cur()->dbl, NULL, 0);
 				lexer_advance();
 			} else if (lexer_at(TOK_STR)) {
-				prog_add_const(prog, cname, clen, CONST_STR, 0, 0, lexer_cur()->str, lexer_cur()->str_len);
+				const_slot = prog_add_const(prog, cname, clen, CONST_STR, 0, 0, lexer_cur()->str, lexer_cur()->str_len);
 				lexer_advance();
 			} else {
 				mira_error(comp->src, comp->filename, lexer_cur()->line, lexer_cur()->col, 1, "'const' expects a number or string after ':'");
 			}
+			if (declared_type_explicit)
+				prog_set_const_type(prog, const_slot, declared_type, true);
 			continue;
 		}
 

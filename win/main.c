@@ -633,6 +633,7 @@ void compile_file_obj(const char *path, const char *obj_path) {
 
 	Program *prog = parser_parse(&c);
 	clock_t profile_parse = profile_enabled ? clock() : 0;
+	mira_typecheck_program(&c, prog);
 	codegen(&c, prog);
 	clock_t profile_codegen = profile_enabled ? clock() : 0;
 
@@ -714,6 +715,7 @@ void compile_file_ir_dump(const char *path, const char *out_path) {
 
 
 	Program *prog = parser_parse(&c);
+	mira_typecheck_program(&c, prog);
 	codegen(&c, prog);
 
 	IrBuffer *ir = &cg->ir;

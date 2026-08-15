@@ -5,7 +5,7 @@ CFLAGS = -O2 -I.
 RUNTIME_CFLAGS = -O2 -I. -D__USE_MINGW_ANSI_STDIO=0 -D_WIN32_WINNT=0x0600 -mno-stack-arg-probe
 
 COMPILER_SRCS = \
-	main.c lexer.c parser.c codegen.c hash.c memory.c error.c \
+	main.c lexer.c parser.c typecheck.c codegen.c hash.c memory.c error.c \
 	codegen/decision.c codegen/stdlib_builtins.c codegen/ir.c codegen/ir_opt.c codegen/ir_cfg_cleanup.c \
 	codegen/ir_dump.c codegen/encoder.c codegen/coff_writer.c codegen/elf_writer.c \
 	codegen/abi_win64.c codegen/ssa_builder.c codegen/ssa_function_index.c \
@@ -28,14 +28,14 @@ RUNTIME_OBJS = $(addprefix runtime/,$(addsuffix .obj,$(RUNTIME_NAMES))) \
 #  words 再聚合 11 个 words_*.c)。只跟踪壳本身时改子文件不重编,
 # 必须显式追加依赖。
 PARSER_DEPS = parser/index.c parser/modules.c parser/helpers.c parser/infix.c \
-	parser/parse_one.c parser/blocks.c parser/parser.h
+	parser/parse_one.c parser/blocks.c parser/parser.h typecheck.h
 CODEGEN_DEPS = codegen/index.c codegen/state.c codegen/emit.c \
 	codegen/literal.c codegen/block.c codegen/list_literal.c \
 	codegen/loops.c codegen/words.c codegen/program.c codegen/codegen.h \
 	codegen/words_arith.c codegen/words_async.c codegen/words_compare.c \
 	codegen/words_data.c codegen/words_debug.c codegen/words_file.c \
 	codegen/words_io.c codegen/words_math.c codegen/words_memory.c \
-	codegen/words_string.c codegen/words_winapi.c codegen/stdlib_builtins.h
+	codegen/words_string.c codegen/words_winapi.c codegen/stdlib_builtins.h typecheck.h
 
 all: mira.exe runtime
 
