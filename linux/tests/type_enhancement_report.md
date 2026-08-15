@@ -29,15 +29,105 @@ powershell -NoProfile -ExecutionPolicy Bypass -File win/tests/run_float_var_arit
 powershell -NoProfile -ExecutionPolicy Bypass -File win/tests/run_infix_line_continuation.ps1
 ```
 
-The short-circuit, branch-return, stdlib core, and stdlib data fixtures were compiled and run at each of `-O0`, `-O1`, `-O2`, and `-O3`; each output was compared to an explicit line-for-line golden value.
+### Exact representative regression commands and goldens
+
+Each of the four programs used the same explicit working directory, `C:\Users\qa345\Documents\Codex\2026-08-12\new-chat\work\mira-type-enhancement\win`, but distinct source and output paths:
+
+| Fixture | Source from that cwd | Executable from that cwd |
+|---|---|---|
+| short circuit | `tests\regression_short_circuit.mira` | `.\regression_short_circuit.exe` |
+| branch return | `tests\regression_branch_return.mira` | `.\regression_branch_return.exe` |
+| stdlib core | `tests\stdlib_core_modules.mira` | `.\stdlib_core_modules.exe` |
+| stdlib data | `tests\stdlib_data_modules.mira` | `.\stdlib_data_modules.exe` |
+
+This is the exact reproducible O0-O3 compile, direct-run, exit-code, line-count, and per-line golden comparison. The empty string in the stdlib-data golden is intentional: it is the blank line immediately after `77`.
 
 ```powershell
-gcc -O0 -g -Iwin win/tests/stdlib_builtin_table_test.c win/codegen/stdlib_builtins.c -o win/tests/stdlib_builtin_table_test.exe
-gcc -O0 -g -Iwin -Iwin/codegen win/tests/ssa_ref_suspend_test.c win/codegen/ssa_ref.c win/codegen/stdlib_builtins.c -o win/tests/ssa_ref_suspend_test.exe
-gcc -O0 -g -Iwin -Iwin/codegen win/tests/ssa_ref_concurrency_test.c win/codegen/ssa_ref.c win/codegen/stdlib_builtins.c -o win/tests/ssa_ref_concurrency_test.exe
+Set-Location 'C:\Users\qa345\Documents\Codex\2026-08-12\new-chat\work\mira-type-enhancement\win'
+$cases = @(
+    @{
+        Name = 'short circuit'
+        Source = 'tests\regression_short_circuit.mira'
+        Exe = '.\regression_short_circuit.exe'
+        Golden = @(
+            '0','0','1','0','1','1','1','2','1','2','1','3','0','1','3',
+            '0','3','1','3','1','4','1','4','1','5','1','6'
+        )
+    },
+    @{
+        Name = 'branch return'
+        Source = 'tests\regression_branch_return.mira'
+        Exe = '.\regression_branch_return.exe'
+        Golden = @('-1','15','100','4','7','9')
+    },
+    @{
+        Name = 'stdlib core'
+        Source = 'tests\stdlib_core_modules.mira'
+        Exe = '.\stdlib_core_modules.exe'
+        Golden = @('1','1','1','1','1','1','4','1','1','2','66','-42','1','1')
+    },
+    @{
+        Name = 'stdlib data'
+        Source = 'tests\stdlib_data_modules.mira'
+        Exe = '.\stdlib_data_modules.exe'
+        Golden = @(
+            '3','10','25','30','1','1','0','77','','-7','12','22','1','0','2',
+            '-7','-2','0','5','5','9','12','12','-7','12','-7','99','-7','6','0'
+        )
+    }
+)
+foreach ($case in $cases) {
+    foreach ($opt in 0..3) {
+        & .\mira.exe "-O$opt" $case.Source
+        if ($LASTEXITCODE -ne 0) {
+            throw "$($case.Name) O$opt compile failed"
+        }
+        $actual = @(& $case.Exe)
+        if ($LASTEXITCODE -ne 0) {
+            throw "$($case.Name) O$opt run failed"
+        }
+        if ($actual.Count -ne $case.Golden.Count) {
+            throw "$($case.Name) O$opt line count: expected $($case.Golden.Count), got $($actual.Count)"
+        }
+        for ($line = 0; $line -lt $case.Golden.Count; $line++) {
+            if ($actual[$line] -cne $case.Golden[$line]) {
+                throw "$($case.Name) O$opt line $($line + 1): expected '$($case.Golden[$line])', got '$($actual[$line])'"
+            }
+        }
+    }
+}
 ```
 
-Each C executable was then run directly and required exit code zero.
+### Exact C metadata commands
+
+The C tests used repository-root cwd `C:\Users\qa345\Documents\Codex\2026-08-12\new-chat\work\mira-type-enhancement`. The following are the Task 6 report's recorded, reproducible build commands; the separate raw compiler transcript was not retained. The verification block directly runs the actual output paths, requires exit zero, and checks exact stdout (the builtin-table test is intentionally silent).
+
+```powershell
+Set-Location 'C:\Users\qa345\Documents\Codex\2026-08-12\new-chat\work\mira-type-enhancement'
+gcc -O0 -g -Iwin win/tests/stdlib_builtin_table_test.c win/codegen/stdlib_builtins.c -o win/tests/stdlib_builtin_table_test.exe
+if ($LASTEXITCODE -ne 0) { throw 'stdlib_builtin_table_test build failed' }
+gcc -O0 -g -Iwin -Iwin/codegen win/tests/ssa_ref_suspend_test.c win/codegen/ssa_ref.c win/codegen/stdlib_builtins.c -o win/tests/ssa_ref_suspend_test.exe
+if ($LASTEXITCODE -ne 0) { throw 'ssa_ref_suspend_test build failed' }
+gcc -O0 -g -Iwin -Iwin/codegen win/tests/ssa_ref_concurrency_test.c win/codegen/ssa_ref.c win/codegen/stdlib_builtins.c -o win/tests/ssa_ref_concurrency_test.exe
+if ($LASTEXITCODE -ne 0) { throw 'ssa_ref_concurrency_test build failed' }
+```
+
+```powershell
+$repoRoot = 'C:\Users\qa345\Documents\Codex\2026-08-12\new-chat\work\mira-type-enhancement'
+Set-Location $repoRoot
+$cCases = @(
+    @{ Name = 'builtin table'; Exe = '.\win\tests\stdlib_builtin_table_test.exe'; Golden = @() },
+    @{ Name = 'SSA ref suspend'; Exe = '.\win\tests\ssa_ref_suspend_test.exe'; Golden = @('ssa_ref_suspend_test: PASS') },
+    @{ Name = 'SSA ref concurrency'; Exe = '.\win\tests\ssa_ref_concurrency_test.exe'; Golden = @('ssa_ref_concurrency_test: PASS') }
+)
+foreach ($case in $cCases) {
+    $actual = @(& $case.Exe)
+    if ($LASTEXITCODE -ne 0) { throw "$($case.Name) exited $LASTEXITCODE" }
+    if (($actual -join "`n") -cne ($case.Golden -join "`n")) {
+        throw "$($case.Name) stdout mismatch"
+    }
+}
+```
 
 ### Pass counts
 
