@@ -21,6 +21,7 @@ void ssa_compute_dom_info(SsaFunction *func);
 typedef struct {
 	VReg alloc_reg;        /* 鍘熷 ALLOCA 鐨勭洰鏍囧瘎瀛樺櫒 */
 	int  phi_var_tag;      /* 鏍囪瘑绗︼紝鐢ㄤ簬 Phi 鑺傜偣璇嗗埆 */
+	SsaType value_type;    /* Type carried by STORE values for this alloca. */
 	SsaBasicBlock **def_blocks;
 	int def_count;
 	int def_cap;
@@ -60,6 +61,7 @@ static AllocaVar *collect_allocas(SsaFunction *func, int *out_count) {
 				}
 				vars[count].alloc_reg = inst->dst;
 				vars[count].phi_var_tag = count; 
+				vars[count].value_type = SSA_TYPE_VOID;
 				vars[count].def_blocks = NULL;
 				vars[count].def_count = 0;
 				vars[count].def_cap = 0;
@@ -88,7 +90,17 @@ static void collect_stores(SsaFunction *func, AllocaVar *vars, int var_count) {
 			if(inst->IrNode == SSA_OP_STORE) {
 				VReg ptr = inst->op2.u.vreg;
 				int v = find_var_idx(vars, var_count, ptr);
-				if(v >= 0) add_def_block(&vars[v], b);
+				if(v >= 0) {
+					add_def_block(&vars[v], b);
+					if (inst->op1.kind == SSA_OPND_VREG &&
+						inst->op1.u.vreg > 0 &&
+						inst->op1.u.vreg < (VReg)func->vreg_defs_cap) {
+						SsaInst *value_def = func->vreg_defs[inst->op1.u.vreg];
+						if (value_def && value_def->type != SSA_TYPE_VOID &&
+							vars[v].value_type == SSA_TYPE_VOID)
+							vars[v].value_type = value_def->type;
+					}
+				}
 			}
 		}
 	}
@@ -122,7 +134,11 @@ static void insert_phis(SsaFunction *func, AllocaVar *vars, int var_count) {
 					/* 鍦ㄦ鎻掑叆 Phi */
 					SsaInst *phi = calloc(1, sizeof(SsaInst));
 					phi->IrNode = SSA_OP_PHI;
-					phi->type = SSA_TYPE_INT;
+					/* Every variable reaching a dominance frontier has at least
+					 * one STORE definition.  Preserve that value type instead of
+					 * silently reinterpreting floats/pointers as integers. */
+					phi->type = vars[v].value_type;
+					if (phi->type == SSA_TYPE_VOID) phi->type = SSA_TYPE_INT;
 					phi->dst = ssa_new_vreg(func, phi->type);
 					phi->parent = y;
 					
@@ -267,7 +283,249 @@ static void remove_allocas(SsaFunction *func, AllocaVar *vars, int var_count) {
 
 /* ========== Phase 6: Phi Destruction (Phi 鈫?COPY) ========== */
 
+typedef struct {
+	int state; /* 0 = borrowed, 1 = owned, 2 = incompatible, 3 = maybe-owned */
+	const char *free_func_name;
+} PhiOwnership;
+
+typedef struct PhiOwnerTokenTable {
+	SsaFunction *func;
+	VReg *tokens;
+	bool *transferred;
+	VReg count;
+	struct PhiOwnerTokenTable *next;
+} PhiOwnerTokenTable;
+
+static PhiOwnerTokenTable *phi_owner_token_tables;
+static const SsaFunction *cached_owner_token_func;
+static PhiOwnerTokenTable *cached_owner_token_table;
+
+static PhiOwnerTokenTable *find_phi_owner_token_table(const SsaFunction *func) {
+	if (cached_owner_token_func == func) return cached_owner_token_table;
+	for (PhiOwnerTokenTable *table = phi_owner_token_tables; table;
+		 table = table->next) {
+		if (table->func != func) continue;
+		cached_owner_token_func = func;
+		cached_owner_token_table = table;
+		return table;
+	}
+	cached_owner_token_func = func;
+	cached_owner_token_table = NULL;
+	return NULL;
+}
+
+VReg ssa_phi_owner_token_for_value(const SsaFunction *func, VReg value) {
+	PhiOwnerTokenTable *table = find_phi_owner_token_table(func);
+	return table && value < table->count ? table->tokens[value] : 0;
+}
+
+void ssa_phi_owner_tokens_release_function(const SsaFunction *func) {
+	PhiOwnerTokenTable **cursor = &phi_owner_token_tables;
+	while (*cursor) {
+		PhiOwnerTokenTable *table = *cursor;
+		if (table->func != func) {
+			cursor = &table->next;
+			continue;
+		}
+		*cursor = table->next;
+		free(table->tokens);
+		free(table->transferred);
+		free(table);
+	}
+	if (cached_owner_token_func == func) {
+		cached_owner_token_func = NULL;
+		cached_owner_token_table = NULL;
+	}
+}
+
+static VReg register_phi_owner_token(SsaFunction *func, VReg value) {
+	PhiOwnerTokenTable *table = find_phi_owner_token_table(func);
+	if (!table) {
+		table = calloc(1, sizeof(*table));
+		if (!table) return 0;
+		table->func = func;
+		table->count = func->next_vreg;
+		table->tokens = calloc(table->count, sizeof(VReg));
+		table->transferred = calloc(table->count, sizeof(bool));
+		if (!table->tokens || !table->transferred) {
+			free(table->tokens);
+			free(table->transferred);
+			free(table);
+			return 0;
+		}
+		table->next = phi_owner_token_tables;
+		phi_owner_token_tables = table;
+		cached_owner_token_func = func;
+		cached_owner_token_table = table;
+	}
+	if (value >= table->count) return 0;
+	if (!table->tokens[value])
+		table->tokens[value] = ssa_new_vreg(func, SSA_TYPE_PTR);
+	return table->tokens[value];
+}
+
+static VReg take_phi_owner_token(SsaFunction *func, VReg value) {
+	PhiOwnerTokenTable *table = find_phi_owner_token_table(func);
+	if (!table || value >= table->count) return 0;
+	VReg token = table->tokens[value];
+	if (!token) return 0;
+	for (VReg alias = 1; alias < table->count; ++alias)
+		if (table->tokens[alias] == token) table->transferred[alias] = true;
+	return token;
+}
+
+static bool phi_owner_token_was_transferred(SsaFunction *func, VReg value) {
+	PhiOwnerTokenTable *table = find_phi_owner_token_table(func);
+	return table && value < table->count && table->transferred[value];
+}
+
+static bool same_free_func(const char *left, const char *right) {
+	if (left == right) return true;
+	return left && right && strcmp(left, right) == 0;
+}
+
+static bool record_ownership(PhiOwnership *slot, const PhiOwnership source) {
+	if (source.state == 0 || slot->state == 2) return false;
+	if (slot->state == 0) {
+		*slot = source;
+		return true;
+	}
+	if (source.state == 2 || !same_free_func(slot->free_func_name,
+											 source.free_func_name)) {
+		slot->state = 2;
+		slot->free_func_name = NULL;
+		return true;
+	}
+	if (source.state == 3 && slot->state == 1) {
+		slot->state = 3;
+		return true;
+	}
+	return false;
+}
+
+/* Ownership is attached to the value definition before PHI destruction.
+ * Resolve COPY/PHI provenance once per VReg while the graph is still SSA.
+ * A back-edge encountered during recursion is conservatively borrowed, which
+ * turns an otherwise-owned cyclic PHI into the safe maybe-owned form. */
+static PhiOwnership resolve_value_ownership(SsaFunction *func, VReg value,
+											PhiOwnership *owners, uint8_t *marks) {
+	PhiOwnership none = {0, NULL};
+	if (value == 0 || value >= func->next_vreg) return none;
+	if (marks[value] == 2) return owners[value];
+	if (marks[value] == 1) return none;
+	marks[value] = 1;
+	SsaInst *def = value < (VReg)func->vreg_defs_cap
+		? func->vreg_defs[value] : NULL;
+	PhiOwnership result = none;
+	if (def && def->needs_free && def->free_func_name) {
+		result.state = 1;
+		result.free_func_name = def->free_func_name;
+	} else if (def && def->IrNode == SSA_OP_COPY &&
+			   def->op1.kind == SSA_OPND_VREG) {
+		result = resolve_value_ownership(func, def->op1.u.vreg, owners, marks);
+	} else if (def && def->IrNode == SSA_OP_PHI && def->operands) {
+		bool all_owned = def->operand_count > 0;
+		bool any_owned = false;
+		for (int oi = 0; oi + 1 < def->operand_count; oi += 2) {
+			if (def->operands[oi].kind != SSA_OPND_VREG) {
+				all_owned = false;
+				continue;
+			}
+			PhiOwnership incoming = resolve_value_ownership(func,
+				def->operands[oi].u.vreg, owners, marks);
+			if (incoming.state == 0) {
+				all_owned = false;
+				continue;
+			}
+			if (incoming.state == 3) all_owned = false;
+			any_owned = true;
+			record_ownership(&result, incoming);
+		}
+		if (any_owned && !all_owned && result.state == 1) result.state = 3;
+	}
+	owners[value] = result;
+	marks[value] = 2;
+	return result;
+}
+
+static PhiOwnership *compute_phi_ownership(SsaFunction *func) {
+	PhiOwnership *owners = calloc(func->next_vreg, sizeof(PhiOwnership));
+	uint8_t *marks = calloc(func->next_vreg, sizeof(uint8_t));
+	if (!owners || !marks) {
+		free(owners);
+		free(marks);
+		return NULL;
+	}
+	for (VReg value = 1; value < func->next_vreg; ++value)
+		resolve_value_ownership(func, value, owners, marks);
+	free(marks);
+	return owners;
+}
+
+/* A maybe-owned value can flow through ordinary SSA COPY nodes before its
+ * eventual use or another PHI.  All such aliases share one conditional owner
+ * token so the token's lifetime follows the last alias use, not the first
+ * COPY source use. */
+static VReg prepare_maybe_owner_token(SsaFunction *func, VReg value,
+										 PhiOwnership *owners, uint8_t *marks,
+										 VReg ownership_limit) {
+	if (value == 0 || value >= ownership_limit || owners[value].state != 3)
+		return 0;
+	VReg existing = ssa_phi_owner_token_for_value(func, value);
+	if (existing) return existing;
+	if (marks[value] == 1) return 0;
+	if (marks[value] == 2) return 0;
+	marks[value] = 1;
+	SsaInst *def = value < (VReg)func->vreg_defs_cap
+		? func->vreg_defs[value] : NULL;
+	VReg token = 0;
+	if (def && def->IrNode == SSA_OP_PHI) {
+		token = register_phi_owner_token(func, value);
+	} else if (def && def->IrNode == SSA_OP_COPY &&
+			   def->op1.kind == SSA_OPND_VREG) {
+		token = prepare_maybe_owner_token(func, def->op1.u.vreg, owners,
+			marks, ownership_limit);
+		PhiOwnerTokenTable *table = find_phi_owner_token_table(func);
+		if (token && table && value < table->count) table->tokens[value] = token;
+	}
+	marks[value] = 2;
+	return token;
+}
+
+/* A PHI consumes the ownership token carried by each incoming SSA value.  The
+ * actual pointer COPY is still non-owning; the token moves to the final merge
+ * definition, preventing auto-free at the temporary's last use. */
+static void clear_value_ownership(SsaFunction *func, VReg value, bool *visited) {
+	if (value == 0 || value >= func->next_vreg || visited[value]) return;
+	visited[value] = true;
+	for (int bi = 0; bi < func->block_count; ++bi) {
+		for (SsaInst *inst = func->blocks[bi]->inst_head; inst; inst = inst->next) {
+			if (inst->dst != value) continue;
+			inst->needs_free = 0;
+			inst->free_func_name = NULL;
+			if (inst->IrNode == SSA_OP_COPY && inst->op1.kind == SSA_OPND_VREG)
+				clear_value_ownership(func, inst->op1.u.vreg, visited);
+			else if (inst->IrNode == SSA_OP_PHI && inst->operands)
+				for (int oi = 0; oi + 1 < inst->operand_count; oi += 2)
+					if (inst->operands[oi].kind == SSA_OPND_VREG)
+						clear_value_ownership(func,
+							inst->operands[oi].u.vreg, visited);
+		}
+	}
+}
+
 static void destroy_phis(SsaFunction *func) {
+	VReg ownership_limit = func->next_vreg;
+	PhiOwnership *owners = compute_phi_ownership(func);
+	if (owners) {
+		uint8_t *token_marks = calloc(ownership_limit, sizeof(uint8_t));
+		if (token_marks) {
+			for (VReg value = 1; value < ownership_limit; ++value)
+				prepare_maybe_owner_token(func, value, owners, token_marks,
+					ownership_limit);
+			free(token_marks);
+		}
+	}
 	for(int i=0; i<func->block_count; i++) {
 		SsaBasicBlock *b = func->blocks[i];
 			SsaInst *curr = b->inst_head;
@@ -284,6 +542,7 @@ static void destroy_phis(SsaFunction *func) {
 			for(int p=0; p<b->pred_count; p++) {
 				SsaBasicBlock *pred = b->preds[p];
 				VReg *tmps = calloc(phi_count, sizeof(VReg));
+				VReg *owner_tmps = calloc(phi_count, sizeof(VReg));
 				
 				/* Pass 1: tmp = COPY src */
 				for(int k=0; k<phi_count; k++) {
@@ -295,16 +554,12 @@ static void destroy_phis(SsaFunction *func) {
 						}
 					}
 					if(src > 0) {
-						VReg tmp = func->next_vreg++;
-						if (func->next_vreg > func->vreg_defs_cap) {
-							func->vreg_defs_cap = func->next_vreg * 2;
-							func->vreg_defs = realloc(func->vreg_defs, func->vreg_defs_cap * sizeof(SsaInst*));
-						}
+						VReg tmp = ssa_new_vreg(func, phi->type);
 						tmps[k] = tmp;
 						
 						SsaInst *copy = calloc(1, sizeof(SsaInst));
 						copy->IrNode = SSA_OP_COPY;
-						copy->type = SSA_TYPE_INT;
+						copy->type = phi->type;
 						copy->dst = tmp;
 						copy->op1.kind = SSA_OPND_VREG;
 						copy->op1.u.vreg = src;
@@ -321,6 +576,44 @@ static void destroy_phis(SsaFunction *func) {
 							else { pred->inst_tail->next = copy; copy->prev = pred->inst_tail; pred->inst_tail = copy; }
 						}
 						func->vreg_defs[tmp] = copy;
+
+						if (owners && phi->dst < ownership_limit &&
+							owners[phi->dst].state == 3) {
+							VReg owner_source = 0;
+							if (src < ownership_limit && owners[src].state == 1)
+								owner_source = src;
+							else if (src < ownership_limit && owners[src].state == 3)
+								owner_source = take_phi_owner_token(func, src);
+							VReg owner_tmp = ssa_new_vreg(func, SSA_TYPE_PTR);
+							owner_tmps[k] = owner_tmp;
+							SsaInst *owner_copy = calloc(1, sizeof(SsaInst));
+							owner_copy->IrNode = owner_source ? SSA_OP_COPY : SSA_OP_IMM;
+							owner_copy->type = SSA_TYPE_PTR;
+							owner_copy->dst = owner_tmp;
+							owner_copy->op1.kind = owner_source
+								? SSA_OPND_VREG : SSA_OPND_IMM;
+							if (owner_source) owner_copy->op1.u.vreg = owner_source;
+							else owner_copy->op1.u.imm = 0;
+							owner_copy->operand_count = 1;
+							owner_copy->parent = pred;
+							term = pred->inst_tail;
+							if(term && (term->IrNode == SSA_OP_JMP || term->IrNode == SSA_OP_BR || term->IrNode == SSA_OP_RET)) {
+								owner_copy->next = term; owner_copy->prev = term->prev;
+								if(term->prev) term->prev->next = owner_copy; else pred->inst_head = owner_copy;
+								term->prev = owner_copy;
+							} else {
+								if(!pred->inst_tail) pred->inst_head = pred->inst_tail = owner_copy;
+								else { pred->inst_tail->next = owner_copy; owner_copy->prev = pred->inst_tail; pred->inst_tail = owner_copy; }
+							}
+							func->vreg_defs[owner_tmp] = owner_copy;
+							if (owner_source) {
+								bool *visited = calloc(func->next_vreg, sizeof(bool));
+								if (visited) {
+									clear_value_ownership(func, owner_source, visited);
+									free(visited);
+								}
+							}
+						}
 					}
 				}
 				
@@ -329,12 +622,22 @@ static void destroy_phis(SsaFunction *func) {
 					if(tmps[k] > 0) {
 						SsaInst *copy = calloc(1, sizeof(SsaInst));
 						copy->IrNode = SSA_OP_COPY;
-						copy->type = SSA_TYPE_INT;
+						copy->type = phis[k]->type;
 						copy->dst = phis[k]->dst;
 						copy->op1.kind = SSA_OPND_VREG;
 						copy->op1.u.vreg = tmps[k];
 						copy->operand_count = 1;
 						copy->parent = pred;
+						if (owners && phis[k]->dst < func->next_vreg &&
+							owners[phis[k]->dst].state == 1) {
+							bool *visited = calloc(func->next_vreg, sizeof(bool));
+							if (visited) {
+								clear_value_ownership(func, copy->op1.u.vreg, visited);
+								free(visited);
+							}
+							copy->needs_free = 1;
+							copy->free_func_name = owners[phis[k]->dst].free_func_name;
+						}
 						
 						SsaInst *term = pred->inst_tail;
 						if(term && (term->IrNode == SSA_OP_JMP || term->IrNode == SSA_OP_BR || term->IrNode == SSA_OP_RET)) {
@@ -347,8 +650,36 @@ static void destroy_phis(SsaFunction *func) {
 						}
 						func->vreg_defs[copy->dst] = copy;
 					}
+					if (owner_tmps[k] > 0) {
+						VReg owner_dst = ssa_phi_owner_token_for_value(func, phis[k]->dst);
+						if (owner_dst > 0) {
+							SsaInst *owner_copy = calloc(1, sizeof(SsaInst));
+							owner_copy->IrNode = SSA_OP_COPY;
+							owner_copy->type = SSA_TYPE_PTR;
+							owner_copy->dst = owner_dst;
+							owner_copy->op1.kind = SSA_OPND_VREG;
+							owner_copy->op1.u.vreg = owner_tmps[k];
+							owner_copy->operand_count = 1;
+							owner_copy->parent = pred;
+							if (!phi_owner_token_was_transferred(func, phis[k]->dst)) {
+								owner_copy->needs_free = 1;
+								owner_copy->free_func_name = owners[phis[k]->dst].free_func_name;
+							}
+							SsaInst *term = pred->inst_tail;
+							if(term && (term->IrNode == SSA_OP_JMP || term->IrNode == SSA_OP_BR || term->IrNode == SSA_OP_RET)) {
+								owner_copy->next = term; owner_copy->prev = term->prev;
+								if(term->prev) term->prev->next = owner_copy; else pred->inst_head = owner_copy;
+								term->prev = owner_copy;
+							} else {
+								if(!pred->inst_tail) pred->inst_head = pred->inst_tail = owner_copy;
+								else { pred->inst_tail->next = owner_copy; owner_copy->prev = pred->inst_tail; pred->inst_tail = owner_copy; }
+							}
+							func->vreg_defs[owner_dst] = owner_copy;
+						}
+					}
 				}
 				free(tmps);
+				free(owner_tmps);
 			}
 			
 			/* 鍒犻櫎鍧楀唴 Phi 鎸囦护 */
@@ -359,6 +690,7 @@ static void destroy_phis(SsaFunction *func) {
 			}
 			free(phis);
 	}
+	free(owners);
 }
 
 void ssa_destroy_phis_module(SsaModule *mod) {
@@ -391,7 +723,9 @@ void ssa_build(SsaModule *mod) {
 			/* Step 4: 鍙橀噺閲嶅懡鍚?*/
 			RenameStack *stacks = calloc(var_count, sizeof(RenameStack));
 			for(int v=0; v<var_count; v++) {
-				VReg init = ssa_new_vreg(func, SSA_TYPE_INT);
+				SsaType init_type = vars[v].value_type == SSA_TYPE_VOID
+					? SSA_TYPE_INT : vars[v].value_type;
+				VReg init = ssa_new_vreg(func, init_type);
 				stacks[v].values[0] = init;
 				stacks[v].depth = 1;
 			}

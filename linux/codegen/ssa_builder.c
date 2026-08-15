@@ -302,6 +302,130 @@ static SsaOpcode comparison_opcode(SsaBuilderCtx *ctx, SsaOpcode integer_opcode,
 	return integer_opcode;
 }
 
+typedef struct {
+	VReg *values;
+	int depth;
+	SsaBasicBlock *exit;
+	bool live;
+} SsaStackExit;
+
+static void restore_vstack(SsaBuilderCtx *ctx, const VReg *values, int depth) {
+	while (ctx->vstack_cap < depth) {
+		ctx->vstack_cap = ctx->vstack_cap ? ctx->vstack_cap * 2 : 128;
+		ctx->vstack = realloc(ctx->vstack,
+			(size_t)ctx->vstack_cap * sizeof(*ctx->vstack));
+	}
+	if (depth > 0) memcpy(ctx->vstack, values, (size_t)depth * sizeof(*values));
+	ctx->vstack_depth = depth;
+}
+
+static VReg *snapshot_vstack(SsaBuilderCtx *ctx, int *depth) {
+	*depth = ctx->vstack_depth;
+	if (*depth == 0) return NULL;
+	VReg *values = malloc((size_t)*depth * sizeof(*values));
+	if (!values) mira_error_simple(1, "out of memory in SSA stack merge");
+	memcpy(values, ctx->vstack, (size_t)*depth * sizeof(*values));
+	return values;
+}
+
+static bool builder_block_is_live(SsaBuilderCtx *ctx, SsaBasicBlock *block) {
+	return block && (block == ctx->cur_func->entry_block || block->pred_count > 0);
+}
+
+static SsaStackExit capture_stack_exit(SsaBuilderCtx *ctx) {
+	SsaStackExit result = {0};
+	result.values = snapshot_vstack(ctx, &result.depth);
+	result.exit = ctx->cur_block;
+	result.live = builder_block_is_live(ctx, result.exit);
+	return result;
+}
+
+static void free_stack_exit(SsaStackExit *exit) {
+	if (!exit) return;
+	free(exit->values);
+	exit->values = NULL;
+}
+
+static SsaType merged_stack_type(SsaBuilderCtx *ctx, SsaStackExit *exits,
+	int exit_count, int slot) {
+	SsaType type = SSA_TYPE_INT;
+	bool found = false;
+	for (int i = 0; i < exit_count; ++i) {
+		if (!exits[i].live) continue;
+		SsaType incoming = infer_value_type(ctx->cur_func, exits[i].values[slot]);
+		if (!found) {
+			type = incoming;
+			found = true;
+		} else if (type != incoming) {
+			/* Strict programs reject mixed branch types before SSA.  Retain the
+			 * legacy scalar fallback for an untyped mixed stack. */
+			return SSA_TYPE_INT;
+		}
+	}
+	return type;
+}
+
+static void merge_stack_exits(SsaBuilderCtx *ctx, SsaBasicBlock *end,
+	const VReg *entry, int entry_depth, SsaStackExit *exits, int exit_count,
+	const char *construct) {
+	int first = -1;
+	int merge_depth = 0;
+	for (int i = 0; i < exit_count; ++i) {
+		if (!exits[i].live) continue;
+		if (first < 0) {
+			first = i;
+			merge_depth = exits[i].depth;
+		} else if (exits[i].depth < merge_depth) {
+			/* The checker merges the common stack prefix and discards values
+			 * produced on only some live arms (statement-style branches). */
+			merge_depth = exits[i].depth;
+		}
+	}
+	(void)construct;
+
+	ctx->cur_block = end;
+	if (first < 0) {
+		restore_vstack(ctx, entry, entry_depth);
+		return;
+	}
+	int live_count = 0;
+	for (int i = 0; i < exit_count; ++i) if (exits[i].live) live_count++;
+	if (live_count == 1) {
+		restore_vstack(ctx, exits[first].values, exits[first].depth);
+		return;
+	}
+
+	ctx->vstack_depth = 0;
+	for (int slot = 0; slot < merge_depth; ++slot) {
+		VReg value = exits[first].values[slot];
+		bool same = true;
+		for (int i = first + 1; i < exit_count; ++i)
+			if (exits[i].live && exits[i].values[slot] != value) {
+				same = false;
+				break;
+			}
+		if (same) {
+			push_vreg(ctx, value);
+			continue;
+		}
+
+		SsaType type = merged_stack_type(ctx, exits, exit_count, slot);
+		VReg merged = ssa_new_vreg(ctx->cur_func, type);
+		SsaInst *phi = alloc_inst(end, SSA_OP_PHI, type, merged);
+		phi->operand_cap = live_count * 2;
+		phi->operand_count = live_count * 2;
+		phi->operands = calloc((size_t)phi->operand_cap, sizeof(*phi->operands));
+		int operand = 0;
+		for (int i = 0; i < exit_count; ++i) {
+			if (!exits[i].live) continue;
+			phi->operands[operand++] = make_vreg_opnd(exits[i].values[slot]);
+			phi->operands[operand].kind = SSA_OPND_BLOCK;
+			phi->operands[operand++].u.block = exits[i].exit;
+		}
+		push_vreg(ctx, merged);
+	}
+}
+
 static Def *find_def_for_ssa_function(Program *prog, const char *symbol) {
 	if (!prog || !symbol) return NULL;
 	for (Def *d = prog->defs; d; d = d->next) {
@@ -1103,8 +1227,11 @@ static void build_op(SsaBuilderCtx *ctx, IrNode *o, IrNode *next) {
 					push_vreg(ctx, then_stack[slot]);
 					continue;
 				}
-				VReg merged = ssa_new_vreg(ctx->cur_func, SSA_TYPE_INT);
-				SsaInst *phi = alloc_inst(end_b, SSA_OP_PHI, SSA_TYPE_INT, merged);
+				SsaType merged_type = infer_value_type(ctx->cur_func, then_stack[slot]);
+				if (merged_type != infer_value_type(ctx->cur_func, else_stack[slot]))
+					merged_type = SSA_TYPE_INT;
+				VReg merged = ssa_new_vreg(ctx->cur_func, merged_type);
+				SsaInst *phi = alloc_inst(end_b, SSA_OP_PHI, merged_type, merged);
 				phi->operand_cap = 4;
 				phi->operand_count = 4;
 				phi->operands = calloc(4, sizeof(SsaOperand));
@@ -1315,57 +1442,91 @@ static void build_op(SsaBuilderCtx *ctx, IrNode *o, IrNode *next) {
 		/* Build the switch expression and pop its value */
 		if (o->u.switch_.value) build_ops(ctx, o->u.switch_.value);
 		VReg switch_val = pop_vreg(ctx);
+		int entry_depth = 0;
+		VReg *entry_stack = snapshot_vstack(ctx, &entry_depth);
 		SsaBasicBlock *end_b = ssa_create_block(ctx->cur_func, "switch_end");
-		
+		SsaStackExit *exits = NULL;
+		int exit_count = 0, exit_cap = 0;
+
 		IrNode *c = o->u.switch_.cases;
 		SsaBasicBlock *curr_cond_b = ctx->cur_block;
-		
+
 		while (c) {
 			IrNode *pattern = c;
 			IrNode *block = c->next;
 			if (!block) break;
-			
+
 			SsaBasicBlock *eval_b = ssa_create_block(ctx->cur_func, "switch_case_eval");
 			SsaBasicBlock *body_b = ssa_create_block(ctx->cur_func, "switch_case_body");
 			SsaBasicBlock *next_cond_b = ssa_create_block(ctx->cur_func, "switch_next");
-			
+
 			ssa_emit_jmp(curr_cond_b, eval_b);
+			restore_vstack(ctx, entry_stack, entry_depth);
 			ctx->cur_block = eval_b;
-			
-			/* Isolate pattern node 閳?don't let build_ops follow ->next into body */
+
+			/* Isolate the pattern from its following body node. */
 			IrNode *saved_next = pattern->next;
 			pattern->next = NULL;
-			build_ops(ctx, pattern); 
+			build_ops(ctx, pattern);
 			pattern->next = saved_next;
 			VReg pat_v = pop_vreg(ctx);
-			
+
 			VReg cmp_res = ssa_new_vreg(ctx->cur_func, SSA_TYPE_INT);
-			ssa_emit_binop(ctx->cur_block, SSA_OP_CMP_EQ, SSA_TYPE_INT, cmp_res, make_vreg_opnd(switch_val), make_vreg_opnd(pat_v));
-			
+			ssa_emit_binop(ctx->cur_block,
+				comparison_opcode(ctx, SSA_OP_CMP_EQ, switch_val, pat_v),
+				SSA_TYPE_INT, cmp_res, make_vreg_opnd(switch_val),
+				make_vreg_opnd(pat_v));
+
 			ssa_emit_br(ctx->cur_block, cmp_res, body_b, next_cond_b);
-			
+
+			restore_vstack(ctx, entry_stack, entry_depth);
 			ctx->cur_block = body_b;
 			if (block->kind == IR_BLOCK) build_ops(ctx, block->u.block);
-			else build_ops(ctx, block); 
-			
-			ssa_emit_jmp(ctx->cur_block, end_b);
-			
+			else {
+				IrNode *body_next = block->next;
+				block->next = NULL;
+				build_ops(ctx, block);
+				block->next = body_next;
+			}
+			if (exit_count == exit_cap) {
+				exit_cap = exit_cap ? exit_cap * 2 : 4;
+				exits = realloc(exits, (size_t)exit_cap * sizeof(*exits));
+			}
+			exits[exit_count] = capture_stack_exit(ctx);
+			if (exits[exit_count].live) ssa_emit_jmp(exits[exit_count].exit, end_b);
+			exit_count++;
+
 			curr_cond_b = next_cond_b;
 			c = block->next;
 		}
-		
+
+		restore_vstack(ctx, entry_stack, entry_depth);
 		ctx->cur_block = curr_cond_b;
 		if (o->u.switch_.default_block) {
 			IrNode *def = o->u.switch_.default_block;
 			if (def->kind == IR_BLOCK) build_ops(ctx, def->u.block);
 			else build_ops(ctx, def);
 		}
-		ssa_emit_jmp(ctx->cur_block, end_b);
-		
-		ctx->cur_block = end_b;
+		if (exit_count == exit_cap) {
+			exit_cap = exit_cap ? exit_cap * 2 : 4;
+			exits = realloc(exits, (size_t)exit_cap * sizeof(*exits));
+		}
+		exits[exit_count] = capture_stack_exit(ctx);
+		if (exits[exit_count].live) ssa_emit_jmp(exits[exit_count].exit, end_b);
+		exit_count++;
+
+		merge_stack_exits(ctx, end_b, entry_stack, entry_depth,
+			exits, exit_count, "switch");
+		for (int i = 0; i < exit_count; ++i) free_stack_exit(&exits[i]);
+		free(exits);
+		free(entry_stack);
 		break;
 	}
 	case IR_TRY: {
+		bool has_catch = o->u.try_block.catch_body != NULL;
+		int entry_depth = 0;
+		VReg *entry_stack = has_catch ? snapshot_vstack(ctx, &entry_depth) : NULL;
+		SsaStackExit exits[2] = {0};
 		SsaBasicBlock *eval_b = ssa_create_block(ctx->cur_func, "try_eval");
 		SsaBasicBlock *body_b = ssa_create_block(ctx->cur_func, "try_body");
 		SsaBasicBlock *err_b  = ssa_create_block(ctx->cur_func, "try_error");
@@ -1401,6 +1562,7 @@ static void build_op(SsaBuilderCtx *ctx, IrNode *o, IrNode *next) {
 		ssa_emit_binop(ctx->cur_block, SSA_OP_CMP_EQ, SSA_TYPE_INT, cmp_res, make_vreg_opnd(setjmp_res), make_vreg_opnd(zero_v));
 		ssa_emit_br(ctx->cur_block, cmp_res, body_b, err_b);
 
+		if (has_catch) restore_vstack(ctx, entry_stack, entry_depth);
 		ctx->cur_block = body_b;
 		IrNode *body_block = o->u.try_block.body;
 		if (body_block) {
@@ -1415,15 +1577,21 @@ static void build_op(SsaBuilderCtx *ctx, IrNode *o, IrNode *next) {
 			i->operand_count = 1;
 		}
 		
-		if (!o->u.try_block.catch_body) {
+		if (!has_catch) {
 			VReg succ_v = ssa_new_vreg(ctx->cur_func, SSA_TYPE_INT);
 			SsaInst *i = alloc_inst(ctx->cur_block, SSA_OP_IMM, SSA_TYPE_INT, succ_v);
 			i->op1.kind = SSA_OPND_IMM; i->op1.u.imm = 1;
 			i->operand_count = 1;
 			push_vreg(ctx, succ_v);
 		}
-		ssa_emit_jmp(ctx->cur_block, end_b);
+		if (has_catch) {
+			exits[0] = capture_stack_exit(ctx);
+			if (exits[0].live) ssa_emit_jmp(exits[0].exit, end_b);
+		} else {
+			ssa_emit_jmp(ctx->cur_block, end_b);
+		}
 
+		if (has_catch) restore_vstack(ctx, entry_stack, entry_depth);
 		ctx->cur_block = err_b;
 		VReg err_v = ssa_new_vreg(ctx->cur_func, SSA_TYPE_INT);
 		{
@@ -1432,7 +1600,7 @@ static void build_op(SsaBuilderCtx *ctx, IrNode *o, IrNode *next) {
 			i->operands[0].kind = SSA_OPND_SYM; i->operands[0].u.sym = strdup("mira_get_error");
 			i->operand_count = 1;
 		}
-		if (o->u.try_block.catch_body) {
+		if (has_catch) {
 			if (o->u.try_block.error_slot >= 0) {
 				SsaInst *store = alloc_inst(ctx->cur_block, SSA_OP_STORE_VAR,
 					SSA_TYPE_VOID, 0);
@@ -1452,9 +1620,18 @@ static void build_op(SsaBuilderCtx *ctx, IrNode *o, IrNode *next) {
 			i->operand_count = 1;
 			push_vreg(ctx, fail_v);
 		}
-		ssa_emit_jmp(ctx->cur_block, end_b);
-
-		ctx->cur_block = end_b;
+		if (has_catch) {
+			exits[1] = capture_stack_exit(ctx);
+			if (exits[1].live) ssa_emit_jmp(exits[1].exit, end_b);
+			merge_stack_exits(ctx, end_b, entry_stack, entry_depth,
+				exits, 2, "try/catch");
+			free_stack_exit(&exits[0]);
+			free_stack_exit(&exits[1]);
+			free(entry_stack);
+		} else {
+			ssa_emit_jmp(ctx->cur_block, end_b);
+			ctx->cur_block = end_b;
+		}
 		break;
 	}
 	case IR_EACH: {

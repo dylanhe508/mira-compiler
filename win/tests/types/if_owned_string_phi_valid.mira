@@ -8,7 +8,17 @@ fn choose_owned(flag: bool) -> str {
 
 fn consume(value: str) -> str { value }
 
+fn choose_mixed(flag: bool) -> str {
+    if (flag) {
+        "mi" "xed" str-cat
+    } else {
+        "borrowed"
+    }
+}
+
 fn main() -> void {
     print(consume(choose_owned(true)));
     print(consume(choose_owned(false)));
+    print(consume(choose_mixed(true)));
+    print(consume(choose_mixed(false)));
 }

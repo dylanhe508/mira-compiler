@@ -20,6 +20,8 @@
 #include <string.h>
 
 extern int mira_opt_level;
+extern VReg ssa_phi_owner_token_for_value(const SsaFunction *func, VReg value);
+extern void ssa_phi_owner_tokens_release_function(const SsaFunction *func);
 
 /* 寄存器分配是 ABI 无关的,它只依赖三条不变式:
  *   1. 槽位 [0, FIRST_NONVOLATILE) 是调用者保存(易失),
@@ -161,6 +163,13 @@ static void compute_live_intervals(RegAllocCtx *ctx) {
 		if (loop_d > ctx->intervals[v].loop_depth) { \
 			ctx->intervals[v].loop_depth = loop_d; \
 		} \
+		VReg owner = ssa_phi_owner_token_for_value(ctx->func, v); \
+		if (owner > 0 && owner < (VReg)ctx->interval_count) { \
+			ctx->intervals[owner].end_pos = pos; \
+			ctx->intervals[owner].use_count += 1 + loop_d * 10; \
+			if (loop_d > ctx->intervals[owner].loop_depth) \
+				ctx->intervals[owner].loop_depth = loop_d; \
+		} \
 	} \
 } while(0)
 
@@ -180,12 +189,21 @@ static void compute_live_intervals(RegAllocCtx *ctx) {
 #define ESCAPE_CHECK(opnd) do { \
 	if ((opnd).kind == SSA_OPND_VREG && (opnd).u.vreg > 0 && \
 	    (opnd).u.vreg < (VReg)ctx->interval_count) { \
-		ctx->intervals[(opnd).u.vreg].needs_free = 0; \
+		VReg escaped = (opnd).u.vreg; \
+		ctx->intervals[escaped].needs_free = 0; \
+		VReg owner = ssa_phi_owner_token_for_value(ctx->func, escaped); \
+		if (owner > 0 && owner < (VReg)ctx->interval_count) \
+			ctx->intervals[owner].needs_free = 0; \
 	} \
 } while(0)
 
 			if (inst->IrNode == SSA_OP_STORE_VAR) {
 				/* 值被存入全局变量，所有权转移 */
+				ESCAPE_CHECK(inst->op1);
+			}
+			if (inst->IrNode == SSA_OP_RET) {
+				/* A returned value transfers ownership to the caller.  Inserting
+				 * an auto-free after RET would be both unreachable and incorrect. */
 				ESCAPE_CHECK(inst->op1);
 			}
 			if (inst->IrNode == SSA_OP_CALL) {
@@ -832,6 +850,28 @@ static void linear_scan_vectors(RegAllocCtx *ctx) {
  * 如果该 VReg 从未被使用（use_count==0），则其定义指令（allocate）
  * 也没有意义——但这种情况会被之前的 DCE pass 自动清除。
  * ====================================================================== */
+static void insert_auto_free_after(SsaBasicBlock *block, SsaInst *inst,
+									 VReg value, LiveInterval *interval) {
+	SsaInst *free_call = calloc(1, sizeof(SsaInst));
+	free_call->IrNode = SSA_OP_CALL;
+	free_call->type = SSA_TYPE_VOID;
+	free_call->dst = 0;
+	free_call->parent = block;
+	free_call->operand_cap = 2;
+	free_call->operands = malloc(sizeof(SsaOperand) * 2);
+	free_call->operands[0].kind = SSA_OPND_SYM;
+	free_call->operands[0].u.sym = strdup(interval->free_func_name);
+	free_call->operands[1].kind = SSA_OPND_VREG;
+	free_call->operands[1].u.vreg = value;
+	free_call->operand_count = 2;
+	free_call->prev = inst;
+	free_call->next = inst->next;
+	if (inst->next) inst->next->prev = free_call;
+	else block->inst_tail = free_call;
+	inst->next = free_call;
+	interval->needs_free = 0;
+}
+
 static void ssa_insert_auto_free(RegAllocCtx *ctx) {
 	int pos = 0;
 	for (int bi = 0; bi < ctx->func->block_count; bi++) {
@@ -846,26 +886,14 @@ static void ssa_insert_auto_free(RegAllocCtx *ctx) {
 		VReg v = (opnd).u.vreg; \
 		LiveInterval *li = &ctx->intervals[v]; \
 		if (li->needs_free && li->end_pos == pos && li->free_func_name) { \
-			/* 在当前指令之后插入: CALL free_func(vreg) */ \
-			SsaInst *free_call = calloc(1, sizeof(SsaInst)); \
-			free_call->IrNode = SSA_OP_CALL; \
-			free_call->type = SSA_TYPE_VOID; \
-			free_call->dst = 0; \
-			free_call->parent = b; \
-			free_call->operand_cap = 2; \
-			free_call->operands = malloc(sizeof(SsaOperand) * 2); \
-			free_call->operands[0].kind = SSA_OPND_SYM; \
-			free_call->operands[0].u.sym = strdup(li->free_func_name); \
-			free_call->operands[1].kind = SSA_OPND_VREG; \
-			free_call->operands[1].u.vreg = v; \
-			free_call->operand_count = 2; \
-			/* 链表插入: inst -> free_call -> inst->next */ \
-			free_call->prev = inst; \
-			free_call->next = inst->next; \
-			if (inst->next) inst->next->prev = free_call; \
-			else b->inst_tail = free_call; \
-			inst->next = free_call; \
-			li->needs_free = 0; /* 已插入，防止重复 */ \
+			insert_auto_free_after(b, inst, v, li); \
+		} \
+		VReg owner = ssa_phi_owner_token_for_value(ctx->func, v); \
+		if (owner > 0 && owner < (VReg)ctx->interval_count) { \
+			LiveInterval *owner_li = &ctx->intervals[owner]; \
+			if (owner_li->needs_free && owner_li->end_pos == pos && \
+				owner_li->free_func_name) \
+				insert_auto_free_after(b, inst, owner, owner_li); \
 		} \
 	} \
 } while(0)
@@ -971,6 +999,6 @@ void ssa_allocate_registers(SsaModule *mod) {
 		free(ctx.div_positions);
 		free(ctx.affinity_sources);
 		free(ctx.intervals);
+		ssa_phi_owner_tokens_release_function(func);
 	}
 }
-

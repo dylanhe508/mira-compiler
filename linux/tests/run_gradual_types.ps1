@@ -271,8 +271,8 @@ if ($Group -in @('all', 'ssa')) {
             @{ Name = 'legacy_unannotated_mut_valid'; Expected = 'typed' },
             @{ Name = 'f64_comparisons_valid'; Expected = "0`n1`n1`n1`n1`n1`n1`n0`n0`n1`n0`n0`n0`n0" },
             @{ Name = 'if_typed_phi_valid'; Expected = "1.5`n2.5`nleft`nright`n3.5`ndirect-right`n11`n22" },
-            @{ Name = 'if_owned_string_phi_valid'; Expected = "mira`ntyped" },
-            @{ Name = 'switch_try_tail_values_valid'; Expected = "11`n22`n11" }
+            @{ Name = 'if_owned_string_phi_valid'; Expected = "mira`ntyped`nmixed`nborrowed" },
+            @{ Name = 'switch_try_tail_values_valid'; Expected = "11`n22`n11`n1.25`n2.5`nswitch-left`nswitch-right`n3.5`ntry-normal" }
         )
         foreach ($case in $focusedCases) {
             foreach ($level in @(0, 3)) {

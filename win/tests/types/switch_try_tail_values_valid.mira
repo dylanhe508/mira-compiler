@@ -9,8 +9,36 @@ fn attempt() -> i64 {
     try { 11 } catch (error) { 22 }
 }
 
+fn choose_float(value: i64) -> f64 {
+    switch (value) {
+        1: { 1.25 }
+        default: { 2.5 }
+    }
+}
+
+fn choose_string(value: i64) -> str {
+    switch (value) {
+        1: { "switch-left" }
+        default: { "switch-right" }
+    }
+}
+
+fn attempt_float() -> f64 {
+    try { 3.5 } catch (error) { 4.5 }
+}
+
+fn attempt_string() -> str {
+    try { "try-normal" } catch (error) { "try-error" }
+}
+
 fn main() -> void {
     print(choose(1));
     print(choose(2));
     print(attempt());
+    print(choose_float(1));
+    print(choose_float(2));
+    print(choose_string(1));
+    print(choose_string(2));
+    print(attempt_float());
+    print(attempt_string());
 }
