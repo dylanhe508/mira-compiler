@@ -37,12 +37,8 @@ int main(void) {
     assert(stdlib_legacy_builtin_lookup("clock", 5) == ticks_builtin);
     const StdlibBuiltin *sleep_builtin = stdlib_builtin_lookup("__mira_time_sleep", 17);
     assert(sleep_builtin && sleep_builtin->may_suspend);
-#ifdef _WIN32
     assert(stdlib_builtin_is_available(sleep_builtin));
-#else
-    assert(!stdlib_builtin_is_available(sleep_builtin));
-#endif
-    assert(sleep_builtin->platform_mask == STDLIB_PLATFORM_WINDOWS);
+    assert(sleep_builtin->platform_mask == STDLIB_PLATFORM_ALL);
     assert(stdlib_builtin_lookup("__mira_missing", 14) == NULL);
     return 0;
 }

@@ -11,6 +11,7 @@ static SsaType mira_type_to_ssa(MiraType type) {
 	switch (type) {
 	case MIRA_TYPE_F64: return SSA_TYPE_FLOAT;
 	case MIRA_TYPE_STR: return SSA_TYPE_PTR;
+	case MIRA_TYPE_PTR: return SSA_TYPE_PTR;
 	case MIRA_TYPE_VOID: return SSA_TYPE_VOID;
 	case MIRA_TYPE_I64:
 	case MIRA_TYPE_BOOL:

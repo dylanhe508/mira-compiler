@@ -1,20 +1,26 @@
+import std.memory as memory;
+
 fn typed_float(value: f64) -> f64 { value }
 fn pick_second(first: f64, second: f64) -> f64 { second }
 fn pick_mixed(first: i64, second: f64) -> f64 { second }
 fn pick_seventh(a: i64, b: i64, c: i64, d: i64, e: i64, f: i64, seventh: f64) -> f64 { seventh }
 fn typed_string(value: str) -> str { value }
+fn typed_pointer(value: ptr) -> ptr { value }
 fn typed_bool(value: bool) -> bool { value }
 fn typed_void() -> void { print("void"); }
 
 fn main() -> void {
     let decimal: f64 = typed_float(2.5);
     let text: str = typed_string("typed");
+    let pointer: ptr = typed_pointer(memory.allocate(8));
     let truth: bool = typed_bool(true);
     print(decimal);
     print(pick_second(1.5, 2.5));
     print(pick_mixed(3, 3.5));
     print(pick_seventh(1, 2, 3, 4, 5, 6, 7.5));
     print(typed_string(text));
+    if (false) { print(pointer); }
+    memory.free(pointer);
     print(truth);
     typed_void();
 }

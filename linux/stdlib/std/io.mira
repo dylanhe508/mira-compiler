@@ -1,5 +1,5 @@
 extern fn __mira_io_read() -> i64;
-extern fn __mira_io_input() -> ptr;
+extern fn __mira_io_input() -> str;
 extern fn __mira_io_newline();
 
 fn print(value) {

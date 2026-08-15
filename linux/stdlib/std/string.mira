@@ -1,13 +1,13 @@
-extern fn __mira_string_length(text: ptr) -> i64;
-extern fn __mira_string_concat(left: ptr, right: ptr) -> ptr;
-extern fn __mira_string_equal(left: ptr, right: ptr) -> i64;
-extern fn __mira_string_contains(text: ptr, part: ptr) -> i64;
-extern fn __mira_string_find(text: ptr, part: ptr) -> i64;
-extern fn __mira_string_substring(text: ptr, start: i64, length: i64) -> ptr;
-extern fn __mira_string_trim(text: ptr) -> ptr;
-extern fn __mira_string_at(text: ptr, index: i64) -> i64;
-extern fn __mira_int_to_string(value: i64) -> ptr;
-extern fn __mira_string_to_int(text: ptr) -> i64;
+extern fn __mira_string_length(text: str) -> i64;
+extern fn __mira_string_concat(left: str, right: str) -> str;
+extern fn __mira_string_equal(left: str, right: str) -> i64;
+extern fn __mira_string_contains(text: str, part: str) -> i64;
+extern fn __mira_string_find(text: str, part: str) -> i64;
+extern fn __mira_string_substring(text: str, start: i64, length: i64) -> str;
+extern fn __mira_string_trim(text: str) -> str;
+extern fn __mira_string_at(text: str, index: i64) -> i64;
+extern fn __mira_int_to_string(value: i64) -> str;
+extern fn __mira_string_to_int(text: str) -> i64;
 
 fn length(text) {
     __mira_string_length(text)

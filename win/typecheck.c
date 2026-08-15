@@ -1441,6 +1441,7 @@ bool mira_type_from_name(const char *name, size_t len, MiraType *out) {
 		{"f64", 3, MIRA_TYPE_F64},
 		{"bool", 4, MIRA_TYPE_BOOL},
 		{"str", 3, MIRA_TYPE_STR},
+		{"ptr", 3, MIRA_TYPE_PTR},
 		{"void", 4, MIRA_TYPE_VOID}
 	};
 
@@ -1459,6 +1460,7 @@ const char *mira_type_name(MiraType type) {
 	case MIRA_TYPE_F64: return "f64";
 	case MIRA_TYPE_BOOL: return "bool";
 	case MIRA_TYPE_STR: return "str";
+	case MIRA_TYPE_PTR: return "ptr";
 	case MIRA_TYPE_VOID: return "void";
 	case MIRA_TYPE_UNKNOWN:
 	default: return "unknown";

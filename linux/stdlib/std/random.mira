@@ -1,7 +1,7 @@
 extern fn __mira_random_next() -> i64;
 extern fn __mira_random_seed(seed: i64);
 extern fn __mira_random_range(minimum: i64, maximum: i64) -> i64;
-extern fn __mira_error_throw(message: ptr);
+extern fn __mira_error_throw(message: str);
 
 fn seed(value) {
     __mira_random_seed(value);

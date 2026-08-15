@@ -1,8 +1,8 @@
-extern fn __mira_file_read(path: ptr) -> ptr;
-extern fn __mira_file_write(path: ptr, content: ptr);
-extern fn __mira_file_append(path: ptr, content: ptr);
-extern fn __mira_file_exists(path: ptr) -> i64;
-extern fn __mira_file_delete(path: ptr);
+extern fn __mira_file_read(path: str) -> str;
+extern fn __mira_file_write(path: str, content: str);
+extern fn __mira_file_append(path: str, content: str);
+extern fn __mira_file_exists(path: str) -> i64;
+extern fn __mira_file_delete(path: str);
 
 fn read(path) {
     __mira_file_read(path)

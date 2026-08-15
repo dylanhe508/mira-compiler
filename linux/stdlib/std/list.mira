@@ -5,7 +5,7 @@ extern fn __mira_list_set(values: ptr, index: i64, value: i64);
 extern fn __mira_list_push(values: ptr, value: i64) -> ptr;
 extern fn __mira_list_pop(values: ptr) -> i64;
 extern fn __mira_list_free(values: ptr);
-extern fn __mira_error_throw(message: ptr);
+extern fn __mira_error_throw(message: str);
 
 fn new() {
     __mira_list_new(0)

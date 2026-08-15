@@ -1,0 +1,10 @@
+import std.memory as memory;
+
+fn identity(value: ptr) -> ptr { value }
+
+fn main() -> void {
+    let pointer: ptr = identity(memory.allocate(8));
+    pointer :: i64 = 7;
+    print(pointer :: i64);
+    memory.free(pointer);
+}

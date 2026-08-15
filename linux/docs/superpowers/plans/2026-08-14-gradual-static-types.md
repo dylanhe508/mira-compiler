@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Semantic types are exactly `unknown`, `i64`, `f64`, `bool`, `str`, and `void`; `unknown` is internal and cannot be written in source.
+- Semantic types are exactly `unknown`, `i64`, `f64`, `bool`, `str`, `ptr`, and `void`; `unknown` is internal and cannot be written in source. `ptr` preserves the existing runtime/stdlib ABI as a strict semantic type and does not enable pointer arithmetic.
 - Explicit annotations are strict; fully unannotated legacy code keeps its current inference and truthiness behavior.
 - There is no implicit `i64`/`f64` conversion.
 - `void` is legal only as a function result and cannot be consumed as a value.
@@ -265,7 +265,7 @@ git commit -m "feat(types): validate typed expressions and locals"
 
 - [ ] **Step 1: Add an SSA-observable failing test**
 
-Create a typed program whose user-defined functions separately return `f64`, `str`, `bool`, and `void`, then print/use them. Compile at O0-O3 and require identical golden output. Dump IR with `-S` and require float-return/call values to be float and string-return/call values to use pointer type rather than the legacy integer fallback.
+Create a typed program whose user-defined functions separately return `f64`, `str`, `ptr`, `bool`, and `void`, then print/use them. Compile at O0-O3 and require identical golden output. Dump IR with `-S` and require float-return/call values to be float and string/pointer-return/call values to use pointer type rather than the legacy integer fallback.
 
 - [ ] **Step 2: Run and verify RED**
 

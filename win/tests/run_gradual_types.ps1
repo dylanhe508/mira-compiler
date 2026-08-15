@@ -1,7 +1,7 @@
 param(
     [string]$Mira = '',
     [string]$Gcc = 'gcc',
-    [ValidateSet('declarations', 'calls', 'expressions', 'ssa')]
+    [ValidateSet('all', 'declarations', 'calls', 'expressions', 'ssa')]
     [string]$Group = 'declarations'
 )
 
@@ -35,7 +35,7 @@ function Expect-Compile-Error([string]$name, [string]$fragment, [string]$locatio
     }
 }
 
-if ($Group -eq 'declarations') {
+if ($Group -in @('all', 'declarations')) {
     Expect-Compile-Error 'unknown_parameter_type' "unknown type 'number'"
     Expect-Compile-Error 'unknown_local_type' "unknown type 'number'"
     Expect-Compile-Error 'unknown_struct_field_type' "unknown type 'number'"
@@ -49,6 +49,12 @@ if ($Group -eq 'declarations') {
         $actual = ((& (Join-Path $types 'annotations_valid.exe')) -join "`n").Trim()
         if ($LASTEXITCODE -ne 0) { throw 'annotations_valid O0 run failed' }
         if ($actual -ne '7') { throw "annotations_valid output '$actual', expected '7'" }
+
+        & $Mira -O0 'ptr_valid.mira' | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw 'ptr_valid O0 compile failed' }
+        $actual = ((& (Join-Path $types 'ptr_valid.exe')) -join "`n").Trim()
+        if ($LASTEXITCODE -ne 0) { throw 'ptr_valid O0 run failed' }
+        if ($actual -ne '7') { throw "ptr_valid output '$actual', expected '7'" }
     } finally {
         Pop-Location
     }
@@ -73,7 +79,7 @@ if ($Group -eq 'declarations') {
     Write-Output 'GRADUAL TYPE DECLARATIONS PASS'
 }
 
-if ($Group -eq 'calls') {
+if ($Group -in @('all', 'calls')) {
     Expect-Compile-Error 'call_extra_argument_error' "expects 1 arguments, got 2" 'Line 2, Column 19'
     Expect-Compile-Error 'call_zero_arity_error' "expects 0 arguments, got 1" 'Line 2, Column 19'
     Expect-Compile-Error 'call_nested_arity_error' "expects 2 arguments, got 1" 'Line 3, Column 28'
@@ -100,6 +106,8 @@ if ($Group -eq 'calls') {
     Expect-Compile-Error 'return_type_error' "function 'label': expected str, got i64"
     Expect-Compile-Error 'call_arity_error' "expects 2 arguments, got 1"
     Expect-Compile-Error 'call_argument_type_error' "argument 1 of 'square': expected f64, got i64"
+    Expect-Compile-Error 'ptr_argument_type_error' "argument 1 of 'identity': expected ptr, got i64"
+    Expect-Compile-Error 'ptr_string_argument_type_error' "argument 1 of 'identity': expected ptr, got str"
     Expect-Compile-Error 'extern_signature_error' "argument 1 of 'mira_abs': expected f64, got i64"
     Expect-Compile-Error 'typed_postfix_insufficient_error' "function 'sum' expects 2 arguments, got 1"
 
@@ -151,7 +159,7 @@ if ($Group -eq 'calls') {
     Write-Output 'GRADUAL TYPE CALLS PASS'
 }
 
-if ($Group -eq 'expressions') {
+if ($Group -in @('all', 'expressions')) {
     Expect-Compile-Error 'assignment_type_error' 'assignment to count: expected i64, got str'
     Expect-Compile-Error 'mixed_numeric_error' 'operator +: expected matching numeric types, got i64 and f64'
     Expect-Compile-Error 'condition_type_error' 'condition: expected bool, got i64'
@@ -197,7 +205,7 @@ if ($Group -eq 'expressions') {
     Write-Output 'GRADUAL TYPE EXPRESSIONS PASS'
 }
 
-if ($Group -eq 'ssa') {
+if ($Group -in @('all', 'ssa')) {
     $expected = "2.5`n2.5`ntyped`n1`nvoid"
 
     Push-Location $types
@@ -244,6 +252,13 @@ if ($Group -eq 'ssa') {
         if (-not $stringPrint.Success -or
             $stringPrint.Groups['after'].Value -notmatch '(?m)^\s*mov rax, 1\r?$') {
             throw 'typed_string call result is not printed with the pointer type tag'
+        }
+
+        $pointerPrint = [regex]::Match($ir,
+            '(?ms)call typed_pointer\r?\n\s*mov (?<pointer>r(?:1[0-5]|[8-9]|ax|bx|cx|dx|si|di)), rax\r?\n.*?' +
+            'mov \[rsp \+ 8\], \k<pointer>\r?\n\s*mov rax, 1\r?\n.*?call mira_print\r?$')
+        if (-not $pointerPrint.Success) {
+            throw 'typed_pointer call result is not lowered and printed with the pointer type tag'
         }
 
         $voidCall = [regex]::Match($ir,

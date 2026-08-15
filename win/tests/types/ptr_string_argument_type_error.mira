@@ -1,0 +1,2 @@
+fn identity(value: ptr) -> ptr { value }
+fn main() -> void { identity("text"); }
