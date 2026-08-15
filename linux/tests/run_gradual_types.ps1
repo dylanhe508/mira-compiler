@@ -7,12 +7,24 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-if (-not $Mira) { $Mira = Join-Path $root 'mira.exe' }
+$isWindowsVariable = Get-Variable -Name IsWindows -ErrorAction SilentlyContinue
+$isWindowsHost = if ($null -ne $isWindowsVariable) {
+    [bool]$isWindowsVariable.Value
+} else {
+    $env:OS -eq 'Windows_NT'
+}
+$binarySuffix = if ($isWindowsHost) { '.exe' } else { '' }
+
+function Get-BinaryPath([string]$directory, [string]$name) {
+    Join-Path $directory "$name$binarySuffix"
+}
+
+if (-not $Mira) { $Mira = Get-BinaryPath $root 'mira' }
 $types = Join-Path $PSScriptRoot 'types'
 
-foreach ($path in @($Mira, $types)) {
-    if (-not (Test-Path -LiteralPath $path)) { throw "missing required path: $path" }
-}
+if (-not (Test-Path -LiteralPath $Mira)) { throw "missing required path: $Mira" }
+$Mira = (Resolve-Path -LiteralPath $Mira).Path
+if (-not (Test-Path -LiteralPath $types)) { throw "missing required path: $types" }
 
 function Expect-Compile-Error([string]$name, [string]$fragment, [string]$location = '') {
     Push-Location $types
@@ -46,14 +58,14 @@ if ($Group -eq 'declarations') {
     try {
         & $Mira -O0 'annotations_valid.mira' | Out-Host
         if ($LASTEXITCODE -ne 0) { throw 'annotations_valid O0 compile failed' }
-        $actual = ((& (Join-Path $types 'annotations_valid.exe')) -join "`n").Trim()
+        $actual = ((& (Get-BinaryPath $types 'annotations_valid')) -join "`n").Trim()
         if ($LASTEXITCODE -ne 0) { throw 'annotations_valid O0 run failed' }
         if ($actual -ne '7') { throw "annotations_valid output '$actual', expected '7'" }
     } finally {
         Pop-Location
     }
 
-    $metadataExe = Join-Path $types 'type_metadata_test.exe'
+    $metadataExe = Get-BinaryPath $types 'type_metadata_test'
     & $Gcc -O0 "-I$root" (Join-Path $PSScriptRoot 'type_metadata_test.c') `
         (Join-Path $root 'lexer.c') (Join-Path $root 'parser.c') `
         (Join-Path $root 'typecheck.c') (Join-Path $root 'memory.c') `
@@ -62,7 +74,7 @@ if ($Group -eq 'declarations') {
     & $metadataExe | Out-Host
     if ($LASTEXITCODE -ne 0) { throw 'type metadata test failed' }
 
-    $freeMetadataExe = Join-Path $types 'program_free_type_metadata_test.exe'
+    $freeMetadataExe = Get-BinaryPath $types 'program_free_type_metadata_test'
     & $Gcc -O0 "-I$root" (Join-Path $PSScriptRoot 'program_free_type_metadata_test.c') `
         -o $freeMetadataExe
     if ($LASTEXITCODE -ne 0) { throw 'program free metadata test build failed' }
@@ -107,7 +119,7 @@ if ($Group -eq 'calls') {
     try {
         & $Mira -O0 'extern_signature_valid.mira' | Out-Host
         if ($LASTEXITCODE -ne 0) { throw 'extern_signature_valid O0 compile failed' }
-        $actual = ((& (Join-Path $types 'extern_signature_valid.exe')) -join "`n").Trim()
+        $actual = ((& (Get-BinaryPath $types 'extern_signature_valid')) -join "`n").Trim()
         if ($LASTEXITCODE -ne 0) { throw 'extern_signature_valid O0 run failed' }
         if ($actual -ne '42') { throw "extern_signature_valid output '$actual', expected '42'" }
     } finally {
@@ -126,7 +138,7 @@ if ($Group -eq 'calls') {
         )) {
             & $Mira -O0 "$($postfixCase.Name).mira" | Out-Host
             if ($LASTEXITCODE -ne 0) { throw "$($postfixCase.Name) O0 compile failed" }
-            $actual = ((& (Join-Path $types "$($postfixCase.Name).exe")) -join "`n").Trim()
+            $actual = ((& (Get-BinaryPath $types $postfixCase.Name)) -join "`n").Trim()
             if ($LASTEXITCODE -ne 0) { throw "$($postfixCase.Name) O0 run failed" }
             if ($actual -ne $postfixCase.Expected) {
                 throw "$($postfixCase.Name) output '$actual', expected '$($postfixCase.Expected)'"
@@ -135,13 +147,13 @@ if ($Group -eq 'calls') {
 
         & $Mira -O0 'branch_all_paths_return_valid.mira' | Out-Host
         if ($LASTEXITCODE -ne 0) { throw 'branch_all_paths_return_valid O0 compile failed' }
-        $actual = ((& (Join-Path $types 'branch_all_paths_return_valid.exe')) -join "`n").Trim()
+        $actual = ((& (Get-BinaryPath $types 'branch_all_paths_return_valid')) -join "`n").Trim()
         if ($LASTEXITCODE -ne 0) { throw 'branch_all_paths_return_valid O0 run failed' }
         if ($actual -ne '1') { throw "branch_all_paths_return_valid output '$actual', expected '1'" }
 
         & $Mira -O0 'try_all_paths_return_valid.mira' | Out-Host
         if ($LASTEXITCODE -ne 0) { throw 'try_all_paths_return_valid O0 compile failed' }
-        $actual = ((& (Join-Path $types 'try_all_paths_return_valid.exe')) -join "`n").Trim()
+        $actual = ((& (Get-BinaryPath $types 'try_all_paths_return_valid')) -join "`n").Trim()
         if ($LASTEXITCODE -ne 0) { throw 'try_all_paths_return_valid O0 run failed' }
         if ($actual -ne '1') { throw "try_all_paths_return_valid output '$actual', expected '1'" }
     } finally {
@@ -184,7 +196,7 @@ if ($Group -eq 'expressions') {
         )) {
             & $Mira -O0 "$($expressionCase.Name).mira" | Out-Host
             if ($LASTEXITCODE -ne 0) { throw "$($expressionCase.Name) O0 compile failed" }
-            $actual = ((& (Join-Path $types "$($expressionCase.Name).exe")) -join "`n").Trim()
+            $actual = ((& (Get-BinaryPath $types $expressionCase.Name)) -join "`n").Trim()
             if ($LASTEXITCODE -ne 0) { throw "$($expressionCase.Name) O0 run failed" }
             if ($actual -ne $expressionCase.Expected) {
                 throw "$($expressionCase.Name) output '$actual', expected '$($expressionCase.Expected)'"
@@ -198,14 +210,14 @@ if ($Group -eq 'expressions') {
 }
 
 if ($Group -eq 'ssa') {
-    $expected = "2.5`n2.5`ntyped`n1`nvoid"
+    $expected = "2.5`n2.5`n3.5`n7.5`ntyped`n1`nvoid"
 
     Push-Location $types
     try {
         foreach ($level in 0..3) {
             & $Mira "-O$level" 'ssa_typed_values.mira' | Out-Host
             if ($LASTEXITCODE -ne 0) { throw "ssa_typed_values O$level compile failed" }
-            $actual = ((& (Join-Path $types 'ssa_typed_values.exe')) -join "`n").Trim()
+            $actual = ((& (Get-BinaryPath $types 'ssa_typed_values')) -join "`n").Trim()
             if ($LASTEXITCODE -ne 0) { throw "ssa_typed_values O$level run failed: $LASTEXITCODE" }
             if ($actual -ne $expected) {
                 throw "ssa_typed_values O$level output '$actual', expected '$expected'"
@@ -235,8 +247,24 @@ if ($Group -eq 'ssa') {
             '(?ms)^pick_second:\r?\n(?<body>.*?)(?=^[A-Za-z_][A-Za-z0-9_]*:\r?$|\z)')
         if (-not $secondParamBody.Success -or
             $secondParamBody.Groups['body'].Value -notmatch
-                '(?m)^\s*mov r(?<scratch>10|11), \[rbp \+ 24\]\r?\n\s*movq [xy]mm[0-9]+, r\k<scratch>\r?$') {
-            throw 'pick_second does not load its second f64 parameter from the Win64 home slot into the float register class'
+                '(?m)^\s*mov r(?<scratch>10|11), \[rbp \+ -[1-9][0-9]*\]\r?\n\s*movq [xy]mm[0-9]+, r\k<scratch>\r?$') {
+            throw 'pick_second does not load its second f64 parameter from a SysV register-parameter home slot into the float register class'
+        }
+
+        $mixedParamBody = [regex]::Match($ir,
+            '(?ms)^pick_mixed:\r?\n(?<body>.*?)(?=^[A-Za-z_][A-Za-z0-9_]*:\r?$|\z)')
+        if (-not $mixedParamBody.Success -or
+            $mixedParamBody.Groups['body'].Value -notmatch
+                '(?m)^\s*mov r(?<scratch>10|11), \[rbp \+ -[1-9][0-9]*\]\r?\n\s*movq [xy]mm[0-9]+, r\k<scratch>\r?$') {
+            throw 'pick_mixed does not preserve the f64 type and SysV home-slot location of its second parameter'
+        }
+
+        $seventhParamBody = [regex]::Match($ir,
+            '(?ms)^pick_seventh:\r?\n(?<body>.*?)(?=^[A-Za-z_][A-Za-z0-9_]*:\r?$|\z)')
+        if (-not $seventhParamBody.Success -or
+            $seventhParamBody.Groups['body'].Value -notmatch
+                '(?m)^\s*mov r(?<scratch>10|11), \[rbp \+ 64\]\r?\n\s*movq [xy]mm[0-9]+, r\k<scratch>\r?$') {
+            throw 'pick_seventh does not load its f64 overflow parameter from the SysV caller stack area'
         }
 
         $stringPrint = [regex]::Match($ir,

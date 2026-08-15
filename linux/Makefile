@@ -13,6 +13,7 @@ CC      = gcc
 # 未定义数据符号进 .rela.dyn 由自写链接器处理);PIC 残留(GOTPCREL)
 # 链接器也有防御支持。
 CFLAGS  = -O2 -g -Wall -fno-pie -D_POSIX_C_SOURCE=200809L -I.
+DEPFLAGS = -MMD -MP
 # -no-pie:Ubuntu 发行版默认 PIE 链接,必须显式关掉以匹配 -fno-pie 的编译产物
 LDFLAGS = -no-pie -lpthread -lm
 
@@ -31,6 +32,7 @@ COMPILER_SRCS = \
 	linker/linker.c linker/symbols.c linker/elf.c linker/elfout.c
 
 COMPILER_OBJS = $(COMPILER_SRCS:.c=.o)
+COMPILER_DEPS = $(COMPILER_OBJS:.o=.d)
 
 # === 运行时目标文件 ===
 # 平台无关核心 + POSIX 实现。rt_fiber.o 由 C 实现与汇编切换器合并而成,
@@ -42,6 +44,9 @@ RUNTIME_OBJS = \
 	runtime/rt_debug.o runtime/rt_time.o runtime/rt_error.o \
 	runtime/rt_sync.o runtime/rt_sched.o runtime/rt_channel.o \
 	runtime/rt_fiber.o
+RUNTIME_DEPS = $(RUNTIME_OBJS:.o=.d) \
+	runtime/rt_fiber_posix.d runtime/rt_fiber_x86_64.d
+DEPS = $(COMPILER_DEPS) $(RUNTIME_DEPS)
 
 .PHONY: all clean runtime
 
@@ -58,26 +63,26 @@ runtime: $(RUNTIME_OBJS)
 
 # 通用编译规则
 %.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c -o $@ $<
 
 %.o: %.S
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c -o $@ $<
 
 # POSIX 并发运行时:源文件名与模块名不同(main.c mod_names 硬编码),
 # 显式命名规则把 *_posix.c 编成对应模块名。
 runtime/rt_sync.o: runtime/rt_sync_posix.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c -o $@ $<
 
 runtime/rt_sched.o: runtime/rt_sched_posix.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c -o $@ $<
 
 runtime/rt_channel.o: runtime/rt_channel_posix.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c -o $@ $<
 
 # fiber:POSIX 实现(C)+ x86-64 协程切换(汇编)合并成一个模块
 runtime/rt_fiber.o: runtime/rt_fiber_posix.c runtime/rt_fiber_x86_64.S
-	$(CC) $(CFLAGS) -c -o runtime/rt_fiber_posix.o runtime/rt_fiber_posix.c
-	$(CC) $(CFLAGS) -c -o runtime/rt_fiber_x86_64.o runtime/rt_fiber_x86_64.S
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c -o runtime/rt_fiber_posix.o runtime/rt_fiber_posix.c
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c -o runtime/rt_fiber_x86_64.o runtime/rt_fiber_x86_64.S
 	$(CC) $(CFLAGS) -r -o $@ runtime/rt_fiber_posix.o runtime/rt_fiber_x86_64.o
 
 # codegen.c 只是壳:实际代码由 codegen/index.c 以 #include 聚合
@@ -95,7 +100,7 @@ CODEGEN_DEPS = codegen/index.c codegen/state.c codegen/emit.c \
 	codegen/words_string.c codegen/words_winapi.c codegen/stdlib_builtins.h typecheck.h
 
 codegen.o: codegen.c $(CODEGEN_DEPS)
-	$(CC) $(CFLAGS) -c -o $@ codegen.c
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c -o $@ codegen.c
 
 codegen/ssa_builder.o: codegen/ssa_builder.c codegen/stdlib_builtins.h typecheck.h
 codegen/ssa_ref.o: codegen/ssa_ref.c codegen/stdlib_builtins.h
@@ -107,8 +112,10 @@ PARSER_DEPS = parser/index.c parser/modules.c parser/helpers.c parser/infix.c \
 	parser/parse_one.c parser/blocks.c parser/parser.h typecheck.h
 
 parser.o: parser.c $(PARSER_DEPS)
-	$(CC) $(CFLAGS) -c -o $@ parser.c
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c -o $@ parser.c
 
 clean:
-	rm -f $(COMPILER_OBJS) $(RUNTIME_OBJS) mira \
+	rm -f $(COMPILER_OBJS) $(RUNTIME_OBJS) $(DEPS) mira \
 		runtime/rt_fiber_posix.o runtime/rt_fiber_x86_64.o
+
+-include $(DEPS)

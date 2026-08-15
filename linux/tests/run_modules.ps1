@@ -1,7 +1,26 @@
+param(
+    [string]$Mira = ''
+)
+
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
-$compiler = Join-Path $root 'mira.exe'
+$isWindowsVariable = Get-Variable -Name IsWindows -ErrorAction SilentlyContinue
+$isWindowsHost = if ($null -ne $isWindowsVariable) {
+    [bool]$isWindowsVariable.Value
+} else {
+    $env:OS -eq 'Windows_NT'
+}
+$binarySuffix = if ($isWindowsHost) { '.exe' } else { '' }
+
+function Get-BinaryPath([string]$directory, [string]$name) {
+    Join-Path $directory "$name$binarySuffix"
+}
+
+$compiler = if ($Mira) { $Mira } else { Get-BinaryPath $root 'mira' }
 $moduleRoot = Join-Path $PSScriptRoot 'modules'
+
+if (-not (Test-Path -LiteralPath $compiler)) { throw "missing compiler: $compiler" }
+$compiler = (Resolve-Path -LiteralPath $compiler).Path
 
 function Compile-And-Run([string]$name, [string]$expected, [string]$opt = '') {
     Push-Location $moduleRoot
@@ -11,7 +30,7 @@ function Compile-And-Run([string]$name, [string]$expected, [string]$opt = '') {
         $args += "$name.mira"
         & $compiler @args | Out-Host
         if ($LASTEXITCODE -ne 0) { throw "$name $opt compile failed" }
-        $actual = (& "$moduleRoot\$name.exe") -join "`n"
+        $actual = (& (Get-BinaryPath $moduleRoot $name)) -join "`n"
         if ($LASTEXITCODE -ne 0) { throw "$name $opt run failed" }
         if ($actual -ne $expected) { throw "$name $opt output '$actual', expected '$expected'" }
     } finally {
