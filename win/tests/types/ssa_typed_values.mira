@@ -1,0 +1,14 @@
+fn typed_float(value: f64) -> f64 { value }
+fn typed_string(value: str) -> str { value }
+fn typed_bool(value: bool) -> bool { value }
+fn typed_void() -> void { print("void"); }
+
+fn main() -> void {
+    let decimal: f64 = typed_float(2.5);
+    let text: str = typed_string("typed");
+    let truth: bool = typed_bool(true);
+    print(decimal);
+    print(typed_string(text));
+    print(truth);
+    typed_void();
+}

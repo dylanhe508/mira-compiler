@@ -13,6 +13,10 @@ typedef enum MiraType {
 	MIRA_TYPE_VOID
 } MiraType;
 
+static inline bool mira_type_is_known(MiraType type) {
+	return type != MIRA_TYPE_UNKNOWN;
+}
+
 struct Compiler;
 struct Program;
 struct Def;

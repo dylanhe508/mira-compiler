@@ -1,7 +1,7 @@
 param(
     [string]$Mira = '',
     [string]$Gcc = 'gcc',
-    [ValidateSet('declarations', 'calls', 'expressions')]
+    [ValidateSet('declarations', 'calls', 'expressions', 'ssa')]
     [string]$Group = 'declarations'
 )
 
@@ -195,4 +195,59 @@ if ($Group -eq 'expressions') {
     }
 
     Write-Output 'GRADUAL TYPE EXPRESSIONS PASS'
+}
+
+if ($Group -eq 'ssa') {
+    $expected = "2.5`ntyped`n1`nvoid"
+
+    Push-Location $types
+    try {
+        foreach ($level in 0..3) {
+            & $Mira "-O$level" 'ssa_typed_values.mira' | Out-Host
+            if ($LASTEXITCODE -ne 0) { throw "ssa_typed_values O$level compile failed" }
+            $actual = ((& (Join-Path $types 'ssa_typed_values.exe')) -join "`n").Trim()
+            if ($LASTEXITCODE -ne 0) { throw "ssa_typed_values O$level run failed: $LASTEXITCODE" }
+            if ($actual -ne $expected) {
+                throw "ssa_typed_values O$level output '$actual', expected '$expected'"
+            }
+        }
+
+        $irPath = Join-Path $types 'ssa_typed_values.O0.ir'
+        & $Mira -S 'ssa_typed_values.mira' $irPath -O0 | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw 'ssa_typed_values O0 IR dump failed' }
+        $ir = Get-Content -Raw -LiteralPath $irPath
+
+        $floatCall = [regex]::Match($ir,
+            '(?ms)^mira_main:\r?\n.*?call typed_float\r?\n(?<after>.*?)(?=^\s*call typed_string\r?$)')
+        if (-not $floatCall.Success -or
+            $floatCall.Groups['after'].Value -notmatch '(?m)^\s*movq [xy]mm[0-9]+, rax\r?$') {
+            throw 'typed_float call result is not lowered through the float register class'
+        }
+
+        $floatBody = [regex]::Match($ir,
+            '(?ms)^typed_float:\r?\n(?<body>.*?)(?=^[A-Za-z_][A-Za-z0-9_]*:\r?$|\z)')
+        if (-not $floatBody.Success -or
+            $floatBody.Groups['body'].Value -notmatch '(?m)^\s*movq r(?:ax|10|11), [xy]mm[0-9]+\r?$') {
+            throw 'typed_float return value is not lowered from the float register class'
+        }
+
+        $stringPrint = [regex]::Match($ir,
+            '(?ms)^mira_main:\r?\n.*?call typed_bool\r?\n.*?call mira_print\r?\n.*?call typed_string\r?\n(?<after>.*?call mira_print\r?$)')
+        if (-not $stringPrint.Success -or
+            $stringPrint.Groups['after'].Value -notmatch '(?m)^\s*mov rax, 1\r?$') {
+            throw 'typed_string call result is not printed with the pointer type tag'
+        }
+
+        $voidCall = [regex]::Match($ir,
+            '(?ms)^mira_main:\r?\n.*?call typed_void\r?\n(?<after>.*?)(?=^\s*ret\r?$)')
+        if (-not $voidCall.Success -or
+            $voidCall.Groups['after'].Value -match '(?m)^\s*mov (?!rsp\b)[^,]+, rax\r?$') {
+            throw 'typed_void call unexpectedly materializes an integer result'
+        }
+    } finally {
+        Remove-Item -LiteralPath (Join-Path $types 'ssa_typed_values.O0.ir') -ErrorAction SilentlyContinue
+        Pop-Location
+    }
+
+    Write-Output 'GRADUAL TYPE SSA PASS'
 }
