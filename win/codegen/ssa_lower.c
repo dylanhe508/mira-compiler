@@ -1688,7 +1688,19 @@ void ssa_lower_function(SsaFunction *func, IrBuffer *ir) {
 				 *        [rbp + sysv_param_home_offset(index)];第 7 个起在调用方
 				 *        栈,从 [rbp + 16 + (index-6)*8] 读。 */
 				int pidx = (int)inst->op1.u.imm;
-				if (dst_reg != REG_NONE) {
+				if (dst_float_reg != REG_NONE) {
+					if (mira_abi_param_in_reg(pidx) && mira_target_abi == MIRA_ABI_SYSV) {
+						ir_mov_reg_mem(ir, REG_R10, REG_RBP,
+						                   sysv_param_home_offset(func, pidx));
+					} else if (mira_target_abi == MIRA_ABI_SYSV) {
+						int nreg = mira_abi_int_arg_reg_count();
+						ir_mov_reg_mem(ir, REG_R10, REG_RBP,
+						                   16 + nreg * 8 + (pidx - nreg) * 8);
+					} else {
+						ir_mov_reg_mem(ir, REG_R10, REG_RBP, 16 + pidx * 8);
+					}
+					ir_movq_xmm_reg(ir, dst_float_reg, REG_R10);
+				} else if (dst_reg != REG_NONE) {
 					if (mira_abi_param_in_reg(pidx) && mira_target_abi == MIRA_ABI_SYSV) {
 						ir_mov_reg_mem(ir, dst_reg, REG_RBP,
 						               sysv_param_home_offset(func, pidx));

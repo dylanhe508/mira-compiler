@@ -198,7 +198,7 @@ if ($Group -eq 'expressions') {
 }
 
 if ($Group -eq 'ssa') {
-    $expected = "2.5`ntyped`n1`nvoid"
+    $expected = "2.5`n2.5`ntyped`n1`nvoid"
 
     Push-Location $types
     try {
@@ -229,6 +229,14 @@ if ($Group -eq 'ssa') {
         if (-not $floatBody.Success -or
             $floatBody.Groups['body'].Value -notmatch '(?m)^\s*movq r(?:ax|10|11), [xy]mm[0-9]+\r?$') {
             throw 'typed_float return value is not lowered from the float register class'
+        }
+
+        $secondParamBody = [regex]::Match($ir,
+            '(?ms)^pick_second:\r?\n(?<body>.*?)(?=^[A-Za-z_][A-Za-z0-9_]*:\r?$|\z)')
+        if (-not $secondParamBody.Success -or
+            $secondParamBody.Groups['body'].Value -notmatch
+                '(?m)^\s*mov r(?<scratch>10|11), \[rbp \+ 24\]\r?\n\s*movq [xy]mm[0-9]+, r\k<scratch>\r?$') {
+            throw 'pick_second does not load its second f64 parameter from the Win64 home slot into the float register class'
         }
 
         $stringPrint = [regex]::Match($ir,
