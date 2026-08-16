@@ -1,7 +1,7 @@
 param(
     [string]$Mira = '',
     [string]$Gcc = 'gcc',
-    [ValidateSet('all', 'declarations', 'calls', 'expressions', 'ssa')]
+    [ValidateSet('all', 'declarations', 'calls', 'expressions', 'ownership', 'ssa')]
     [string]$Group = 'declarations'
 )
 
@@ -47,6 +47,22 @@ function Expect-Compile-Error([string]$name, [string]$fragment, [string]$locatio
     }
 }
 
+if ($Group -in @('all', 'ownership')) {
+    $ownershipMetadataExe = Join-Path $types 'ownership_metadata_test'
+    $ownershipSources = @(
+        (Join-Path $PSScriptRoot 'ownership_metadata_test.c'),
+        (Join-Path $root 'lexer.c'), (Join-Path $root 'parser.c'),
+        (Join-Path $root 'typecheck.c'), (Join-Path $root 'memory.c'),
+        (Join-Path $root 'error.c'), (Join-Path $root 'hash.c'),
+        (Join-Path $root 'codegen/stdlib_builtins.c')
+    )
+    & $Gcc -O0 "-I$root" $ownershipSources -o $ownershipMetadataExe
+    if ($LASTEXITCODE -ne 0) { throw 'ownership metadata test build failed' }
+    & $ownershipMetadataExe | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw 'ownership metadata test failed' }
+    Write-Output 'CHECKER OWNERSHIP PASS'
+}
+
 if ($Group -in @('all', 'declarations')) {
     Expect-Compile-Error 'unknown_parameter_type' "unknown type 'number'"
     Expect-Compile-Error 'unknown_local_type' "unknown type 'number'"
@@ -81,7 +97,8 @@ if ($Group -in @('all', 'declarations')) {
     & $Gcc -O0 "-I$root" (Join-Path $PSScriptRoot 'type_metadata_test.c') `
         (Join-Path $root 'lexer.c') (Join-Path $root 'parser.c') `
         (Join-Path $root 'typecheck.c') (Join-Path $root 'memory.c') `
-        (Join-Path $root 'error.c') (Join-Path $root 'hash.c') -o $metadataExe
+        (Join-Path $root 'error.c') (Join-Path $root 'hash.c') `
+        (Join-Path $root 'codegen/stdlib_builtins.c') -o $metadataExe
     if ($LASTEXITCODE -ne 0) { throw 'type metadata test build failed' }
     & $metadataExe | Out-Host
     if ($LASTEXITCODE -ne 0) { throw 'type metadata test failed' }

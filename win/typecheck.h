@@ -14,6 +14,14 @@ typedef enum MiraType {
 	MIRA_TYPE_VOID
 } MiraType;
 
+typedef enum MiraOwnership {
+	MIRA_OWNERSHIP_UNKNOWN = 0,
+	MIRA_OWNERSHIP_BORROWED,
+	MIRA_OWNERSHIP_OWNED,
+	MIRA_OWNERSHIP_MAYBE_OWNED,
+	MIRA_OWNERSHIP_ESCAPED
+} MiraOwnership;
+
 static inline bool mira_type_is_known(MiraType type) {
 	return type != MIRA_TYPE_UNKNOWN;
 }

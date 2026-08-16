@@ -96,6 +96,9 @@ struct IrNode {
 	const char *source_filename;
 	size_t source_offset;
 	uint32_t source_module;
+	MiraOwnership checked_ownership;
+	const char *checked_free_func_name;
+	unsigned char ownership_checked;
 };
 
 typedef struct Def {
@@ -108,6 +111,10 @@ typedef struct Def {
 	int param_count;
 	MiraType return_type;
 	unsigned char return_type_explicit;
+	MiraOwnership return_ownership;
+	const char *return_free_func_name;
+	unsigned char ownership_checked;
+	unsigned char *param_may_escape;
 	int line;
 	int col;
 	IrNode *body;

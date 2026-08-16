@@ -1,4 +1,5 @@
 #include "mira.h"
+#include "codegen/stdlib_builtins.h"
 
 Def *mira_find_signature(Program *program, const char *name, size_t name_len) {
 	if (!program || !name) return NULL;
@@ -26,6 +27,10 @@ typedef struct {
 	MiraType type;
 	unsigned type_mask;
 	bool strict;
+	MiraOwnership ownership;
+	const char *free_func_name;
+	int owner_param;
+	const IrNode *ownership_origin;
 	int line;
 	int col;
 	Def *void_source;
@@ -73,11 +78,38 @@ typedef struct {
 	MiraSourceScan **source_scans;
 	const char *last_call_source;
 	size_t last_call_close;
+	MiraOwnership return_ownership;
+	const char *return_free_func_name;
+	bool has_return_ownership;
 } MiraTypeChecker;
 
 static bool word_is(const IrNode *node, const char *word) {
 	return node->kind == IR_WORD && node->u.word.len == strlen(word) &&
 		memcmp(node->u.word.name, word, node->u.word.len) == 0;
+}
+
+static MiraOwnership checker_default_ownership(MiraType type) {
+	return type == MIRA_TYPE_UNKNOWN ? MIRA_OWNERSHIP_UNKNOWN :
+		MIRA_OWNERSHIP_BORROWED;
+}
+
+static void checker_annotate_ownership(const IrNode *origin,
+	MiraOwnership ownership, const char *free_func_name) {
+	if (!origin) return;
+	IrNode *node = (IrNode *)origin;
+	node->checked_ownership = ownership;
+	node->checked_free_func_name = free_func_name;
+	node->ownership_checked = 1;
+}
+
+static void checker_set_value_ownership(MiraCheckedValue *value,
+	const IrNode *origin, MiraOwnership ownership, const char *free_func_name) {
+	if (!value) return;
+	value->ownership = ownership;
+	value->free_func_name = free_func_name;
+	value->owner_param = -1;
+	value->ownership_origin = origin;
+	checker_annotate_ownership(origin, ownership, free_func_name);
 }
 
 static void checker_push(MiraTypeChecker *checker, MiraType type, bool strict,
@@ -99,6 +131,9 @@ static void checker_push(MiraTypeChecker *checker, MiraType type, bool strict,
 	value.col = origin ? origin->col : 1;
 	value.source = origin ? origin->source : NULL;
 	value.source_filename = origin ? origin->source_filename : NULL;
+	value.owner_param = -1;
+	value.ownership_origin = origin;
+	value.ownership = checker_default_ownership(type);
 	if (type_mask) {
 		value.origin_line[type] = value.line;
 		value.origin_col[type] = value.col;
@@ -106,6 +141,7 @@ static void checker_push(MiraTypeChecker *checker, MiraType type, bool strict,
 		value.origin_filename[type] = value.source_filename;
 	}
 	checker->values[checker->value_count++] = value;
+	checker_annotate_ownership(origin, value.ownership, NULL);
 }
 
 static void checker_push_value(MiraTypeChecker *checker,
@@ -780,6 +816,24 @@ static void checker_copy_state(MiraTypeChecker *target,
 			(size_t)target->var_flow_count * sizeof(*target->var_flow_types));
 }
 
+static MiraOwnership checker_merge_ownership(MiraOwnership left,
+	MiraOwnership right) {
+	if (left == right) return left;
+	if (left == MIRA_OWNERSHIP_ESCAPED && right == MIRA_OWNERSHIP_ESCAPED)
+		return MIRA_OWNERSHIP_ESCAPED;
+	if (left == MIRA_OWNERSHIP_UNKNOWN || right == MIRA_OWNERSHIP_UNKNOWN)
+		return MIRA_OWNERSHIP_UNKNOWN;
+	return MIRA_OWNERSHIP_MAYBE_OWNED;
+}
+
+static const char *checker_merge_free_func(MiraCheckedValue left,
+	MiraCheckedValue right) {
+	if (left.free_func_name == right.free_func_name) return left.free_func_name;
+	if (!left.free_func_name) return right.free_func_name;
+	if (!right.free_func_name) return left.free_func_name;
+	return NULL;
+}
+
 static MiraCheckedValue checker_merge_value(MiraCheckedValue left,
 	MiraCheckedValue right) {
 	MiraCheckedValue merged = left;
@@ -790,6 +844,11 @@ static MiraCheckedValue checker_merge_value(MiraCheckedValue left,
 	else if (right.type == MIRA_TYPE_UNKNOWN) merged.type = left.type;
 	else if (left.type != right.type) merged.type = MIRA_TYPE_UNKNOWN;
 	if (!merged.void_source) merged.void_source = right.void_source;
+	merged.ownership = checker_merge_ownership(left.ownership, right.ownership);
+	merged.free_func_name = checker_merge_free_func(left, right);
+	if (left.owner_param != right.owner_param) merged.owner_param = -1;
+	if (merged.ownership != left.ownership)
+		merged.ownership_origin = right.ownership_origin;
 	for (MiraType type = MIRA_TYPE_I64; type <= MIRA_TYPE_VOID; ++type) {
 		if (!checker_value_has_type(right, type) || (left_mask & (1u << type)))
 			continue;
@@ -930,6 +989,13 @@ static bool checker_logical_if(IrNode *node, IrNode **value,
 	return true;
 }
 
+static void checker_annotate_top_result(MiraTypeChecker *checker,
+	IrNode *node, int entry_count) {
+	if (!node || checker->value_count <= entry_count) return;
+	MiraCheckedValue *value = &checker->values[checker->value_count - 1];
+	checker_annotate_ownership(node, value->ownership, value->free_func_name);
+}
+
 static void checker_check_if(MiraTypeChecker *checker, IrNode *node) {
 	int entry_count = checker->value_count;
 	IrNode *logical_value = NULL;
@@ -953,7 +1019,10 @@ static void checker_check_if(MiraTypeChecker *checker, IrNode *node) {
 		result->type = MIRA_TYPE_BOOL;
 		result->type_mask = 1u << MIRA_TYPE_BOOL;
 		result->strict = true;
+		checker_set_value_ownership(result, node,
+			MIRA_OWNERSHIP_BORROWED, NULL);
 	}
+	checker_annotate_top_result(checker, node, entry_count);
 	free(then_state.values);
 	free(then_state.var_flow_types);
 	free(else_state.values);
@@ -961,6 +1030,7 @@ static void checker_check_if(MiraTypeChecker *checker, IrNode *node) {
 }
 
 static void checker_check_switch(MiraTypeChecker *checker, IrNode *node) {
+	int entry_count = checker->value_count;
 	checker_check_value_context(checker, node->u.switch_.value);
 	MiraTypeChecker accumulator = {0};
 	bool has_accumulator = false;
@@ -989,15 +1059,18 @@ static void checker_check_switch(MiraTypeChecker *checker, IrNode *node) {
 	checker_accumulate_state(checker, &accumulator,
 		&has_accumulator, &fallback);
 	if (has_accumulator) checker_copy_state(checker, &accumulator);
+	checker_annotate_top_result(checker, node, entry_count);
 	free(accumulator.values);
 	free(accumulator.var_flow_types);
 }
 
 static void checker_check_try(MiraTypeChecker *checker, IrNode *node) {
+	int entry_count = checker->value_count;
 	MiraTypeChecker body = checker_clone(checker);
 	checker_check_nodes(&body, node->u.try_block.body);
 	if (!node->u.try_block.catch_body) {
 		checker_copy_state(checker, &body);
+		checker_annotate_top_result(checker, node, entry_count);
 		free(body.values);
 		free(body.var_flow_types);
 		return;
@@ -1005,6 +1078,7 @@ static void checker_check_try(MiraTypeChecker *checker, IrNode *node) {
 	MiraTypeChecker caught = checker_clone(checker);
 	checker_check_nodes(&caught, node->u.try_block.catch_body);
 	checker_merge_states(checker, &body, &caught);
+	checker_annotate_top_result(checker, node, entry_count);
 	free(body.values);
 	free(body.var_flow_types);
 	free(caught.values);
@@ -1047,6 +1121,12 @@ static void checker_check_call(MiraTypeChecker *checker, IrNode *node, Def *call
 		if (checker_value_has_type(actual, MIRA_TYPE_VOID))
 			checker_void_value_error(checker, actual);
 		int param = missing + i;
+		bool may_escape = callee->is_extern || !callee->ownership_checked ||
+			!callee->param_may_escape || callee->param_may_escape[param];
+		if (may_escape && checker->def && actual.owner_param >= 0 &&
+			actual.owner_param < checker->def->param_count &&
+			checker->def->param_may_escape)
+			checker->def->param_may_escape[actual.owner_param] = 1;
 		if (!callee->param_type_explicit || !callee->param_type_explicit[param]) continue;
 		MiraType expected = callee->param_types[param];
 		MiraType mismatch = checker_first_mismatch(actual, expected);
@@ -1068,6 +1148,71 @@ static void checker_check_call(MiraTypeChecker *checker, IrNode *node, Def *call
 			callee->return_type_explicit ? callee->return_type : MIRA_TYPE_UNKNOWN,
 			callee->return_type_explicit, node);
 	}
+	MiraCheckedValue *result = &checker->values[checker->value_count - 1];
+	const StdlibBuiltin *builtin = stdlib_builtin_lookup(
+		node->u.word.name, node->u.word.len);
+	if (!builtin) builtin = stdlib_legacy_builtin_lookup(
+		node->u.word.name, node->u.word.len);
+	if (builtin) {
+		checker_set_value_ownership(result, node,
+			builtin->owned_result ? MIRA_OWNERSHIP_OWNED :
+			MIRA_OWNERSHIP_BORROWED,
+			builtin->owned_result ? builtin->free_func_name : NULL);
+	} else if (callee->ownership_checked) {
+		checker_set_value_ownership(result, node, callee->return_ownership,
+			callee->return_free_func_name);
+	} else if (result->type == MIRA_TYPE_STR || result->type == MIRA_TYPE_PTR) {
+		checker_set_value_ownership(result, node, MIRA_OWNERSHIP_UNKNOWN, NULL);
+	}
+}
+
+static void checker_record_return_ownership(MiraTypeChecker *checker,
+	MiraCheckedValue value) {
+	if (checker->def && value.owner_param >= 0 &&
+		value.owner_param < checker->def->param_count &&
+		checker->def->param_may_escape)
+		checker->def->param_may_escape[value.owner_param] = 1;
+	if (!checker->has_return_ownership) {
+		checker->return_ownership = value.ownership;
+		checker->return_free_func_name = value.free_func_name;
+		checker->has_return_ownership = true;
+		return;
+	}
+	MiraCheckedValue prior = {
+		.ownership = checker->return_ownership,
+		.free_func_name = checker->return_free_func_name
+	};
+	checker->return_ownership = checker_merge_ownership(
+		checker->return_ownership, value.ownership);
+	checker->return_free_func_name = checker_merge_free_func(prior, value);
+}
+
+static MiraType checker_builtin_result_type(const StdlibBuiltin *builtin) {
+	if (!builtin || builtin->result_count == 0) return MIRA_TYPE_VOID;
+	switch (builtin->result_type) {
+	case SSA_TYPE_FLOAT: return MIRA_TYPE_F64;
+	case SSA_TYPE_INT: return MIRA_TYPE_I64;
+	case SSA_TYPE_VOID: return MIRA_TYPE_VOID;
+	case SSA_TYPE_PTR:
+	case SSA_TYPE_V4I64:
+	default: return MIRA_TYPE_UNKNOWN;
+	}
+}
+
+static void checker_check_builtin_call(MiraTypeChecker *checker, IrNode *node,
+	const StdlibBuiltin *builtin) {
+	int available = checker->value_count < builtin->arity ?
+		checker->value_count : builtin->arity;
+	int first = checker->value_count - available;
+	for (int i = first; i < checker->value_count; ++i)
+		if (checker_value_has_type(checker->values[i], MIRA_TYPE_VOID))
+			checker_void_value_error(checker, checker->values[i]);
+	checker->value_count = first;
+	MiraType type = checker_builtin_result_type(builtin);
+	checker_push(checker, type, type != MIRA_TYPE_UNKNOWN, node);
+	checker_set_value_ownership(&checker->values[checker->value_count - 1], node,
+		builtin->owned_result ? MIRA_OWNERSHIP_OWNED : MIRA_OWNERSHIP_BORROWED,
+		builtin->owned_result ? builtin->free_func_name : NULL);
 }
 
 static void checker_check_return(MiraTypeChecker *checker, IrNode *node) {
@@ -1099,6 +1244,7 @@ static void checker_check_return(MiraTypeChecker *checker, IrNode *node) {
 		checker_result_error(checker, value);
 	} else {
 		MiraCheckedValue value = checker_pop(checker);
+		checker_record_return_ownership(checker, value);
 		if (checker_value_has_type(value, MIRA_TYPE_VOID)) checker_void_value_error(checker, value);
 		MiraType mismatch = checker_first_mismatch(value, checker->return_type);
 		if (mismatch != MIRA_TYPE_UNKNOWN) {
@@ -1169,6 +1315,7 @@ static void checker_check_nodes(MiraTypeChecker *checker, IrNode *node) {
 				checker_push(checker,
 					strict ? checker->def->param_types[param] : MIRA_TYPE_UNKNOWN,
 					strict, node);
+				checker->values[checker->value_count - 1].owner_param = param;
 				break;
 			}
 			if (word_is(node, "and") || word_is(node, "or") ||
@@ -1226,6 +1373,14 @@ static void checker_check_nodes(MiraTypeChecker *checker, IrNode *node) {
 					if (checker_value_has_type(value, MIRA_TYPE_VOID))
 						checker_void_value_error(checker, value);
 				}
+				break;
+			}
+			const StdlibBuiltin *builtin = stdlib_builtin_lookup(
+				node->u.word.name, node->u.word.len);
+			if (!builtin) builtin = stdlib_legacy_builtin_lookup(
+				node->u.word.name, node->u.word.len);
+			if (builtin) {
+				checker_check_builtin_call(checker, node, builtin);
 				break;
 			}
 			bool comparison = false;
@@ -1367,7 +1522,15 @@ static void checker_check_function(Compiler *compiler, Program *program,
 		(def && signature_is_typed(def)) ||
 		checker_nodes_have_explicit_local(program, body);
 	checker.pending_store_slot = -1;
+	if (def && def->param_count > 0) {
+		if (!def->param_may_escape)
+			def->param_may_escape = arena_alloc(&program->ir_arena,
+				(size_t)def->param_count * sizeof(*def->param_may_escape));
+	}
 	checker_check_nodes(&checker, body);
+	if (checker.reachable && checker.value_count > 0)
+		checker_record_return_ownership(&checker,
+			checker.values[checker.value_count - 1]);
 	if (return_type_explicit && checker.reachable) {
 		if (checker.value_count > 0) {
 			MiraCheckedValue value = checker.values[checker.value_count - 1];
@@ -1396,6 +1559,12 @@ static void checker_check_function(Compiler *compiler, Program *program,
 			missing.origin_filename[MIRA_TYPE_VOID] = missing.source_filename;
 			checker_result_error(&checker, missing);
 		}
+	}
+	if (def) {
+		def->return_ownership = checker.has_return_ownership ?
+			checker.return_ownership : MIRA_OWNERSHIP_BORROWED;
+		def->return_free_func_name = checker.return_free_func_name;
+		def->ownership_checked = 1;
 	}
 	free(checker.values);
 	free(checker.var_flow_types);
@@ -1445,6 +1614,12 @@ void mira_typecheck_program(Compiler *compiler, Program *program) {
 			"unknown type 'unknown'");
 
 	for (Def *def = program->defs; def; def = def->next) {
+		if (def->param_count > 0 && !def->param_may_escape) {
+			def->param_may_escape = arena_alloc(&program->ir_arena,
+				(size_t)def->param_count * sizeof(*def->param_may_escape));
+			memset(def->param_may_escape, 0,
+				(size_t)def->param_count * sizeof(*def->param_may_escape));
+		}
 		for (int i = 0; i < def->param_count; ++i) {
 			if (!def->param_type_explicit || !def->param_type_explicit[i]) continue;
 			MiraType type = def->param_types[i];
@@ -1495,11 +1670,25 @@ void mira_typecheck_program(Compiler *compiler, Program *program) {
 				"type 'void' is only valid as a function result");
 	}
 
-	for (Def *def = program->defs; def; def = def->next) {
-		if (!def->is_extern)
+	int def_count = 0;
+	for (Def *def = program->defs; def; def = def->next)
+		if (!def->is_extern) def_count++;
+	for (int pass = 0; pass <= def_count; ++pass) {
+		bool changed = false;
+		for (Def *def = program->defs; def; def = def->next) {
+			if (def->is_extern) continue;
+			MiraOwnership before = def->return_ownership;
+			const char *before_free = def->return_free_func_name;
+			unsigned char before_checked = def->ownership_checked;
 			checker_check_function(compiler, program, def, def->body,
 				def->return_type, def->return_type_explicit,
 				def->name, def->name_len, &source_scans);
+			if (before != def->return_ownership ||
+				before_free != def->return_free_func_name ||
+				before_checked != def->ownership_checked)
+				changed = true;
+		}
+		if (!changed) break;
 	}
 	checker_check_function(compiler, program, NULL, program->main_block,
 		program->main_return_type, program->main_return_type_explicit,
