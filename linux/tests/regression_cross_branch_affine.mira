@@ -1,0 +1,21 @@
+fn branchy_recurrence() {
+    mut total = 0;
+    mut i = -37;
+    while (i < 1963) {
+        if ((i & 3) == 0) {
+            total = total + (i * 1103515245 + 12345);
+        } else {
+            if ((i & 3) == 1) {
+                total = total - (i * 1103515245 - 17);
+            } else {
+                total = total + (i * 17 + 9);
+            }
+        }
+        i = i + 1;
+    }
+    total
+}
+
+fn main() {
+    print(branchy_recurrence());
+}
