@@ -1,15 +1,14 @@
-# Mira CLI Emit Modes Design
+# Mira 命令行输出模式设计
 
-## Goal
+## 目标
 
-Make Mira's output commands match established compiler conventions and ensure
-that every emitted artifact comes from the same optimized compilation pipeline.
-The change must not alter normal executable output or add an external assembler
-dependency to ordinary builds.
+让 Mira 的输出命令符合常见编译器习惯，并确保所有输出产物都来自同一条、
+完整的优化流水线。普通可执行文件的行为不能因此改变，正常编译也不能新增
+对外部汇编器的依赖。
 
-## User interface
+## 用户接口
 
-The supported forms are:
+支持以下形式：
 
 ```text
 mira input.mira
@@ -21,111 +20,105 @@ mira -c input.mira
 mira --emit=obj input.mira
 ```
 
-All emit modes accept `-o <path>`. Without `-o`, output names use the input
-stem in the current directory:
+所有输出模式都接受 `-o <路径>`。没有指定 `-o` 时，以输入文件的主文件名
+在当前目录生成产物：
 
-| Mode | Windows default | Linux default |
+| 模式 | Windows 默认名称 | Linux 默认名称 |
 | --- | --- | --- |
-| executable | `input.exe` | `input` |
-| assembly | `input.s` | `input.s` |
-| internal IR | `input.ir` | `input.ir` |
-| object | `input.obj` | `input.o` |
+| 可执行文件 | `input.exe` | `input` |
+| 汇编 | `input.s` | `input.s` |
+| 内部 IR | `input.ir` | `input.ir` |
+| 目标文件 | `input.obj` | `input.o` |
 
-`-S` is an alias for `--emit=asm`. `-c` is an alias for `--emit=obj`.
-The former `-S input [output]` IR behavior is intentionally replaced; repository
-tests that inspect internal IR will use `--emit=ir input -o output.ir`.
+`-S` 是 `--emit=asm` 的别名，`-c` 是 `--emit=obj` 的别名。
+原有的 `-S input [output]` 输出内部 IR 的行为将被替换；仓库中需要检查
+内部 IR 的测试统一改用 `--emit=ir input -o output.ir`。
 
-Optimization and target options may appear before or after the input, but every
-option that takes a value consumes it explicitly. Unknown options, missing values,
-multiple input files, and conflicting emit modes fail with a concise diagnostic
-and nonzero exit status.
+优化选项和目标选项可以写在输入文件之前或之后。所有需要参数的选项都必须
+明确消费自己的参数。遇到未知选项、缺少参数、多个输入文件或互相冲突的输出
+模式时，编译器给出简洁诊断并以非零状态退出。
 
-## Compilation architecture
+## 编译架构
 
-Parsing, type checking, SSA construction, optimization, register allocation,
-machine-IR lowering, and late machine-IR optimization form one shared pipeline.
-The pipeline produces a finalized `IrBuffer`; artifact writers consume that
-buffer without rerunning or skipping optimization stages.
+解析、类型检查、SSA 构建、优化、寄存器分配、机器 IR 降低和后期机器 IR
+优化组成一条共享流水线。流水线生成最终的 `IrBuffer`，各产物写出器只消费
+这个结果，不能重新运行或跳过其中某些优化阶段。
 
-The final branch is:
+最终分流如下：
 
 ```text
-final IrBuffer
-  +-- internal IR writer -> .ir
-  +-- assembly writer    -> .s
-  +-- machine encoder    -> .obj/.o
-                            +-- self-written linker -> executable
+最终 IrBuffer
+  +-- 内部 IR 写出器 -> .ir
+  +-- 汇编写出器    -> .s
+  +-- 机器码编码器  -> .obj/.o
+                       +-- 自研链接器 -> 可执行文件
 ```
 
-Normal executable builds retain the existing direct machine-code encoder and
-self-written linker. They do not invoke the emitted assembly or an external
-assembler.
+普通可执行文件仍使用现有的直接机器码编码器和自研链接器，不经过输出的汇编
+文本，也不调用外部汇编器。
 
-## Assembly contract
+## 汇编输出约定
 
-Assembly output uses GNU assembler Intel syntax so the same textual convention
-works with MinGW `as` on Windows and GNU `as` on Linux. It includes the sections,
-symbol visibility, external declarations, labels, data, BSS, scalar instructions,
-floating-point instructions, and AVX instructions represented by the finalized
-machine IR.
+汇编输出采用 GNU assembler 的 Intel 语法，使 Windows 上的 MinGW `as`
+和 Linux 上的 GNU `as` 使用同一种文本风格。输出必须覆盖最终机器 IR 中的：
 
-The output is assembler-consumable for the selected host target, not merely a
-debug pretty-print. Symbolic calls and addresses remain relocatable. Local labels
-are deterministic so repeated compilations produce stable text.
+- 代码段、数据段和 BSS；
+- 符号可见性、外部符号和标签；
+- 整数、浮点和 AVX 指令；
+- 可重定位的调用与地址引用。
 
-The writer rejects an unsupported machine-IR opcode instead of silently printing
-an approximation. The diagnostic identifies the opcode and output path.
+输出必须能被当前宿主目标的 GNU assembler 接受，而不只是供人阅读的调试
+文本。本地标签必须稳定、确定，使相同输入的重复编译产生稳定文本。
 
-## Internal IR contract
+如果汇编写出器遇到尚未支持的机器 IR 操作码，必须明确失败，诊断中给出操作码
+和输出路径，不能静默输出近似或错误指令。
 
-`--emit=ir` preserves the existing textual IR vocabulary used by compiler tests,
-but it observes the same late optimization passes as object and executable output.
-It is a debugging format, not a stable source language or assembler input.
+## 内部 IR 输出约定
 
-## Object and executable modes
+`--emit=ir` 保留现有测试使用的文本 IR 词汇，但它必须观察到与目标文件、
+可执行文件相同的后期优化。内部 IR 是调试格式，不是稳定的源语言，也不是
+汇编器输入。
 
-`-c`/`--emit=obj` writes only the program object and does not invoke the linker.
-Unresolved runtime symbols are valid in this artifact.
+## 目标文件与可执行文件
 
-The default executable mode retains selective runtime linking. `-o` changes only
-the final executable path; the temporary object remains an implementation detail
-under `out/`.
+`-c`/`--emit=obj` 只写出程序目标文件，不调用链接器。目标文件中保留未解析的
+运行时符号是合法行为。
 
-## Cross-platform behavior
+默认可执行文件模式继续使用选择性运行时链接。`-o` 只改变最终可执行文件路径；
+位于 `out/` 下的临时目标文件仍是实现细节。
 
-Platform-neutral CLI parsing, pipeline sharing, IR emission, and diagnostics are
-mirrored between `win/` and `linux/`. Assembly formatting uses the selected host
-object convention where symbol decoration or section spelling differs. This work
-does not turn `--target=linux` on a Windows compiler into a complete cross linker;
-existing target limitations remain explicit.
+## 跨平台行为
 
-## Help and documentation
+平台无关的命令行解析、共享流水线、IR 输出和诊断在 `win/` 与 `linux/` 中
+保持镜像。符号修饰或段名写法受平台影响时，汇编写出器使用当前宿主目标的对象
+格式约定。
 
-`mira --help` groups commands, output modes, optimization, target selection, and
-information flags. It reports the actual default optimization level from
-`mira_opt_level`, avoiding a duplicated hard-coded value. README examples use the
-new spellings and clearly distinguish `.ir`, `.s`, object, and executable output.
+本改动不会把 Windows 编译器上的 `--target=linux` 变成完整的交叉链接器；
+现有目标平台限制必须继续明确说明。
 
-## Testing
+## 帮助和文档
 
-Tests must establish:
+`mira --help` 按命令、输出模式、优化、目标选择和信息选项分组。帮助信息直接
+读取 `mira_opt_level` 的真实默认值，避免再维护一份可能过期的硬编码文本。
+README 示例要使用新命令，并清楚区分 `.ir`、`.s`、目标文件和可执行文件。
 
-1. `-S` and `--emit=asm` produce equivalent Intel-syntax assembly.
-2. Representative integer, floating-point, branch, call, data, BSS, and AVX
-   programs emit assembly accepted by the host GNU assembler.
-3. `--emit=ir` retains the IR patterns required by existing optimization tests.
-4. `-c` and `--emit=obj` produce valid host object files without linking.
-5. `-o`, default names, option ordering, aliases, conflicts, missing operands,
-   and unknown options have deterministic behavior.
-6. O0 through O3 affect IR, assembly, object, and executable modes consistently.
-7. Before and after the refactor, normal regression executables have identical
-   output; representative unchanged programs retain identical object/executable
-   hashes when no intended code-generation change is involved.
-8. Windows and Linux platform-neutral changes remain mirrored; native Linux
-   execution is verified when the environment is available and otherwise reported
-   separately from source/build checks.
+## 测试要求
 
-## Non-goals
+测试必须证明：
 
-This change does not add `run`, `check`, `test`, formatting, package management,
-a REPL, a new language syntax, or a new linker. Those belong to later UX work.
+1. `-S` 与 `--emit=asm` 产生等价的 Intel 语法汇编。
+2. 覆盖整数、浮点、分支、调用、数据、BSS 和 AVX 的代表程序所生成的汇编，
+   能被宿主 GNU assembler 接受。
+3. `--emit=ir` 保留现有优化测试依赖的 IR 模式。
+4. `-c` 与 `--emit=obj` 能在不链接的情况下生成有效宿主目标文件。
+5. `-o`、默认名称、参数顺序、别名、冲突、缺失参数和未知选项的行为稳定确定。
+6. O0 到 O3 在 IR、汇编、目标文件和可执行文件模式中使用一致的优化流水线。
+7. 重构前后，普通回归程序的输出完全一致；对于没有预期代码生成变化的代表程序，
+   目标文件与可执行文件哈希保持一致。
+8. Windows 与 Linux 的平台无关改动保持镜像；环境允许时执行原生 Linux 验证，
+   否则必须把源码/构建检查与原生运行限制分开报告。
+
+## 非目标
+
+本次不加入 `run`、`check`、`test`、格式化、包管理、REPL、新语言语法或新链接器。
+这些属于后续用户体验改造。
