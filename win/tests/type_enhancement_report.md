@@ -1,5 +1,31 @@
 # Mira gradual types: final regression and performance guard
 
+## Checker-guided ownership follow-up (2026-08-16)
+
+The type checker now computes five-state ownership facts (`unknown`,
+`borrowed`, `owned`, `maybe-owned`, `escaped`) and converged function return
+and parameter-escape summaries. SSA copies those facts to calls and branch
+results; maybe-owned PHIs carry conditional owner tokens through PHI
+destruction. Known Mira calls use a 64-bit escape mask, while extern, legacy,
+and unresolved calls retain conservative behavior. Last-use/free placement
+stays in register allocation. No GC, reference counting, or runtime heap
+metadata was added.
+
+Fresh verification passed clean/full Windows build, gradual `all`, modules,
+float, infix, four O0-O3 golden suites, the builtin table, and SSA reference
+suspend/concurrency probes. The ownership group also passed its structural SSA
+metadata/builder probes and exact five-line O0/O3 golden: `owned`, `borrowed`,
+`nested`, `returned`, `stored`.
+
+Linux changed translation units passed host `-fsyntax-only`; seven changed
+platform-neutral pairs matched after newline normalization. Native Linux
+execution remains unavailable in this Windows environment.
+
+Modern, integer, and float O3 outputs matched their goldens. All three binaries
+remained 3584 bytes and SHA-256-identical to baseline. One 50-compile typed
+batch measured 628.170 ms baseline versus 629.732 ms current (+0.249%), with no
+machine-code delta.
+
 Date: 2026-08-15 (Asia/Shanghai)
 Result: **PASS on Windows; native Linux verification pending because WSL cannot start.**
 
