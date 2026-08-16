@@ -48,4 +48,12 @@ $disabled = Count-Multiply $disabledAsm
 if ($enabled -ge $disabled) {
     throw "branch recurrence missing enabled_imul=$enabled disabled_imul=$disabled"
 }
-Write-Output "SHAPE PASS enabled_imul=$enabled disabled_imul=$disabled"
+$lines = Get-Content -LiteralPath $enabledAsm
+$start = ($lines | Select-String '^branchy_recurrence:').LineNumber
+$finish = ($lines | Select-String '^mira_main:').LineNumber
+$body = $lines[($start - 1)..($finish - 2)]
+$spills = @($body | Select-String '\[rbp \+ -').Count
+if ($spills -ne 0) {
+    throw "branch selector spilled after recurrence spills=$spills"
+}
+Write-Output "SHAPE PASS enabled_imul=$enabled disabled_imul=$disabled spills=0"

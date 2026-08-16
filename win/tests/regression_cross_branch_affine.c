@@ -2,28 +2,23 @@
 #include <stdint.h>
 #include <stdio.h>
 
-static int64_t add_wrap(int64_t a, int64_t b) {
-    return (int64_t)((uint64_t)a + (uint64_t)b);
-}
-
-static int64_t sub_wrap(int64_t a, int64_t b) {
-    return (int64_t)((uint64_t)a - (uint64_t)b);
-}
-
-static int64_t mul_wrap(int64_t a, int64_t b) {
-    return (int64_t)((uint64_t)a * (uint64_t)b);
+static int64_t branchy_recurrence(int64_t n) {
+    int64_t checksum = 0, bucket0 = 0, bucket1 = 0, bucket2 = 0;
+    for (int64_t i = 0; i < n; ++i) {
+        int64_t sensor = ((i * 1103515245LL + 12345) >> 7) & 65535;
+        int64_t adjusted = sensor * ((i & 31) + 1) + ((i >> 3) & 255);
+        if ((adjusted & 7) < 3)
+            bucket0 += adjusted;
+        else if ((adjusted & 7) < 6)
+            bucket1 += adjusted ^ (i * 17);
+        else
+            bucket2 += adjusted / ((i & 15) + 1);
+        checksum += (bucket0 ^ bucket1) + bucket2 + adjusted;
+    }
+    return checksum + bucket0 + bucket1 + bucket2;
 }
 
 int main(void) {
-    int64_t total = 0;
-    for (int64_t i = -37; i < 1963; ++i) {
-        if ((i & 3) == 0)
-            total = add_wrap(total, add_wrap(mul_wrap(i, 1103515245), 12345));
-        else if ((i & 3) == 1)
-            total = sub_wrap(total, sub_wrap(mul_wrap(i, 1103515245), 17));
-        else
-            total = add_wrap(total, add_wrap(mul_wrap(i, 17), 9));
-    }
-    printf("%" PRId64 "\n", total);
+    printf("%" PRId64 "\n", branchy_recurrence(20000));
     return 0;
 }
