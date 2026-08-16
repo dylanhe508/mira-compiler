@@ -478,3 +478,18 @@ A Windows-hosted `mingw32-make -C linux clean all` is not a substitute for nativ
 ## Final guard
 
 Before the report commit, `git diff --check` passed, the mirror manifest had zero mismatches, and `git status --short` contained no executable, object, IR, or test-output paths. Generated files are ignored and no generated artifact is tracked.
+
+## Hot-loop optimization (2026-08-16)
+
+Two O3 changes were accepted: proven constant shift counts now use x86 immediate forms, and `(base +/- delta) * factor` reuses an earlier same-block `base * factor` when no store to the base slot intervenes. The latter is a modulo-2^64 identity and performs no code motion. A proposed XMM loop-state change was rejected after variable division regressed from about 94-96 ms to 130.862 ms; none of it remains.
+
+Affected cases were rerun 1000 times per compiler in alternating order with exact output comparison:
+
+| Case | Mira ms | GCC `-O3 -march=native` ms | Ratio | Mira P5-P95 | GCC P5-P95 | Previous ratio |
+|---|---:|---:|---:|---:|---:|---:|
+| telemetry_pipeline | 8.540 | 6.895 | 1.238 | 8.118-9.064 | 6.580-7.395 | 1.372 |
+| matrix_stencil_long | 33.149 | 23.655 | 1.401 | 31.960-37.038 | 22.335-27.214 | 1.722 |
+
+The other six benchmark executables were unchanged where these transforms did not apply. The updated eight-case result is 4:4, geometric mean **0.977**, median ratio **1.020**. Thus the suite remains effectively tied overall, with the geometric mean favoring Mira by about 2.3%.
+
+Mira telemetry is 7680 bytes (`1AB039...E0E4A`) and Mira matrix is 3584 bytes (`51B644...CE8A8`). Final clean verification passed the Windows build, hot-loop tests, gradual types `all`, modules, float arithmetic, infix continuation, and short-circuit/branch-return/stdlib O0-O3 goldens. Linux `ssa_opt.c` passed host `-fsyntax-only`; native Linux remains pending for the environment reason above.
