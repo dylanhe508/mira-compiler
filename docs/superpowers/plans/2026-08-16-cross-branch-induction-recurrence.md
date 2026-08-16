@@ -26,6 +26,13 @@ semantics or adding a new optimization subsystem.
 
 ## Task 3: Inspect generated code and compatibility
 
+- Add a focused RED assertion showing that the new recurrence makes the shared
+  masked branch selector spill in a telemetry-shaped loop.
+- Add a bounded SSA rematerialization helper for immediate-mask `AND` values
+  used by comparisons in remote blocks; clone immediately before the consumer
+  and let the existing dead-code pass remove the long live range.
+- Require the high-pressure fixture to keep the multiply reduction while
+  eliminating local stack accesses.
 - Compile telemetry with decision diagnostics and verify candidate discovery.
 - Compare pre-change and post-change disassembly, confirming that the selected
   loop multiply becomes a recurrence update and that division/branch layout is

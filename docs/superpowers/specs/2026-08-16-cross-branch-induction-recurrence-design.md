@@ -30,6 +30,21 @@ No runtime component, VM profiling format, static-reference analysis, machine
 scheduler, or language feature is added.  Static Reference continues to supply
 the existing safety facts; it is not placed in the runtime path.
 
+## Register-pressure companion
+
+The first measured prototype removed the multiply but made telemetry slower:
+the new loop-carried value exhausted the nonvolatile pool, so the shared
+`adjusted & 7` branch selector was written once and reloaded twice from the
+stack.  Address this locally rather than weakening allocator safety.  When a
+pure integer `AND` with an immediate mask is consumed only by comparisons and
+a consumer is in a different block, clone that cheap expression immediately
+before the remote comparison and retarget that operand.  Normal dead-code
+elimination can then shorten or remove the original live range.
+
+This is bounded rematerialization, not general code duplication: only one
+side-effect-free instruction is cloned, only comparison operands qualify, and
+no load, call, ownership value, division, or user-visible operation can move.
+
 ## Verification
 
 - Add a general cross-branch induction fixture with multiple branch arms and a
@@ -37,6 +52,8 @@ the existing safety facts; it is not placed in the runtime path.
 - Before the production change, O3 debug output must show the branch-loop veto.
   Afterwards it must show a discovered affine candidate, and the hot loop must
   no longer contain the selected constant multiply.
+- The high-pressure branch fixture must contain no local spill access after
+  recurrence plus selector rematerialization.
 - Run the existing induction-strength suite and the full correctness matrix.
 - Compare an exact pre-change compiler and the candidate on telemetry and the
   matrix benchmark.  Use short alternating gates first, then 1000 alternating
