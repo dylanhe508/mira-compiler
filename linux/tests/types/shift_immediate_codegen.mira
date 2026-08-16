@@ -1,0 +1,11 @@
+fn shift_constants(value: i64) -> void {
+    print(value >> 7);
+    print(value << 3);
+}
+
+fn shift_dynamic(value: i64, amount: i64) -> i64 { value >> amount }
+
+fn main() -> void {
+    shift_constants(1024);
+    let ignored: i64 = shift_dynamic(1024, clock-ns() & 63);
+}

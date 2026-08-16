@@ -516,6 +516,24 @@ static int is_spilled(SsaFunction *f, VReg vreg) {
  * 闁兼眹鍎查幖閿嬫媴濠婂嫭娈堕柡?IMM闁挎稑鑻ぐ鍌滀焊?mov scratch_reg, imm 妤犵偞鍎肩换鎴﹀炊?scratch_reg闁?
  * scratch_reg 闁哄嫷鍨伴ˇ顒勬偨閵娿儳妲戦悗娑櫭▍鎺楁晬閸粎鐟濋柤瀹犳閹?dst_reg 闁告劘灏欓悰濠囨晬婢跺牃鍋?
  */
+static bool resolve_shift_immediate(const SsaFunction *func, SsaOperand operand,
+	int *amount) {
+	if (!amount) return false;
+	if (operand.kind == SSA_OPND_IMM) {
+		*amount = (int)(operand.u.imm & 63);
+		return true;
+	}
+	if (!func || operand.kind != SSA_OPND_VREG || operand.u.vreg == 0 ||
+		operand.u.vreg >= (VReg)func->vreg_defs_cap)
+		return false;
+	SsaInst *def = func->vreg_defs[operand.u.vreg];
+	if (!def || def->IrNode != SSA_OP_IMM || def->type != SSA_TYPE_INT ||
+		def->op1.kind != SSA_OPND_IMM)
+		return false;
+	*amount = (int)(def->op1.u.imm & 63);
+	return true;
+}
+
 static IrReg load_operand(IrBuffer *ir, SsaFunction *func, SsaOperand opnd, IrReg scratch) {
 	if (opnd.kind == SSA_OPND_VREG) {
 		IrReg xr = get_ssa_float_reg(func, opnd.u.vreg);
@@ -1129,8 +1147,8 @@ void ssa_lower_function(SsaFunction *func, IrBuffer *ir) {
 				 * the allocator may assign RCX to either input or the destination. */
 				IrReg value = load_operand(ir, func, inst->op1, REG_R10);
 				if (value != REG_R10) ir_mov_reg_reg(ir, REG_R10, value);
-				if (inst->op2.kind == SSA_OPND_IMM) {
-					int amount = (int)(inst->op2.u.imm & 63);
+				int amount = 0;
+				if (resolve_shift_immediate(func, inst->op2, &amount)) {
 					if (inst->IrNode == SSA_OP_SHL) ir_shl_reg_imm(ir, REG_R10, amount);
 					else if (inst->IrNode == SSA_OP_ASHR) ir_sar_reg_imm(ir, REG_R10, amount);
 					else ir_shr_reg_imm(ir, REG_R10, amount);
