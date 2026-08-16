@@ -210,7 +210,10 @@ static void compute_live_intervals(RegAllocCtx *ctx) {
 				/* 值被传给函数调用，所有权可能转移 */
 				if (inst->operands) {
 					for (int opIdx = 1; opIdx < inst->operand_count; opIdx++) {
-						ESCAPE_CHECK(inst->operands[opIdx]);
+						int param = opIdx - 1;
+						if (!inst->escape_summary_known || param >= 64 ||
+							(inst->param_escape_mask & (UINT64_C(1) << param)))
+							ESCAPE_CHECK(inst->operands[opIdx]);
 					}
 				}
 			}

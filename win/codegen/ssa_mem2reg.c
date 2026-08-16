@@ -417,7 +417,16 @@ static PhiOwnership resolve_value_ownership(SsaFunction *func, VReg value,
 	SsaInst *def = value < (VReg)func->vreg_defs_cap
 		? func->vreg_defs[value] : NULL;
 	PhiOwnership result = none;
-	if (def && def->needs_free && def->free_func_name) {
+	if (def && def->ownership == SSA_OWNERSHIP_OWNED) {
+		result.state = 1;
+		result.free_func_name = def->free_func_name;
+	} else if (def && def->ownership == SSA_OWNERSHIP_MAYBE_OWNED) {
+		result.state = 3;
+		result.free_func_name = def->free_func_name;
+	} else if (def && (def->ownership == SSA_OWNERSHIP_BORROWED ||
+					 def->ownership == SSA_OWNERSHIP_ESCAPED)) {
+		result = none;
+	} else if (def && def->needs_free && def->free_func_name) {
 		result.state = 1;
 		result.free_func_name = def->free_func_name;
 	} else if (def && def->IrNode == SSA_OP_COPY &&
@@ -481,12 +490,14 @@ static VReg prepare_maybe_owner_token(SsaFunction *func, VReg value,
 	VReg token = 0;
 	if (def && def->IrNode == SSA_OP_PHI) {
 		token = register_phi_owner_token(func, value);
+		def->owner_token = token;
 	} else if (def && def->IrNode == SSA_OP_COPY &&
 			   def->op1.kind == SSA_OPND_VREG) {
 		token = prepare_maybe_owner_token(func, def->op1.u.vreg, owners,
 			marks, ownership_limit);
 		PhiOwnerTokenTable *table = find_phi_owner_token_table(func);
 		if (token && table && value < table->count) table->tokens[value] = token;
+		if (def) def->owner_token = token;
 	}
 	marks[value] = 2;
 	return token;
@@ -565,6 +576,9 @@ static void destroy_phis(SsaFunction *func) {
 						copy->op1.u.vreg = src;
 						copy->operand_count = 1;
 						copy->parent = pred;
+						copy->ownership = phi->ownership;
+						copy->owner_token = phi->owner_token;
+						copy->free_func_name = phi->free_func_name;
 						
 						SsaInst *term = pred->inst_tail;
 						if(term && (term->IrNode == SSA_OP_JMP || term->IrNode == SSA_OP_BR || term->IrNode == SSA_OP_RET)) {
@@ -628,6 +642,9 @@ static void destroy_phis(SsaFunction *func) {
 						copy->op1.u.vreg = tmps[k];
 						copy->operand_count = 1;
 						copy->parent = pred;
+						copy->ownership = phis[k]->ownership;
+						copy->owner_token = phis[k]->owner_token;
+						copy->free_func_name = phis[k]->free_func_name;
 						if (owners && phis[k]->dst < func->next_vreg &&
 							owners[phis[k]->dst].state == 1) {
 							bool *visited = calloc(func->next_vreg, sizeof(bool));

@@ -134,8 +134,14 @@ void ssa_add_edge(SsaBasicBlock *from, SsaBasicBlock *to) {
 
 static void apply_builtin_ownership(SsaInst *inst, const StdlibBuiltin *builtin) {
     if (!inst || !builtin || !builtin->owned_result) return;
-    inst->needs_free = 1;
-    inst->free_func_name = builtin->free_func_name;
+    ssa_inst_apply_checked_ownership(inst, MIRA_OWNERSHIP_OWNED,
+        builtin->free_func_name);
+}
+
+static void apply_node_ownership(SsaInst *inst, const IrNode *node) {
+    if (!inst || !node || !node->ownership_checked) return;
+    ssa_inst_apply_checked_ownership(inst, node->checked_ownership,
+        node->checked_free_func_name);
 }
 
 static SsaInst *alloc_inst(SsaBasicBlock *b, SsaOpcode IrNode, SsaType type, VReg dst) {
@@ -367,7 +373,7 @@ static SsaType merged_stack_type(SsaBuilderCtx *ctx, SsaStackExit *exits,
 
 static void merge_stack_exits(SsaBuilderCtx *ctx, SsaBasicBlock *end,
 	const VReg *entry, int entry_depth, SsaStackExit *exits, int exit_count,
-	const char *construct) {
+	const char *construct, const IrNode *source) {
 	int first = -1;
 	int merge_depth = 0;
 	for (int i = 0; i < exit_count; ++i) {
@@ -422,6 +428,7 @@ static void merge_stack_exits(SsaBuilderCtx *ctx, SsaBasicBlock *end,
 			phi->operands[operand].kind = SSA_OPND_BLOCK;
 			phi->operands[operand++].u.block = exits[i].exit;
 		}
+		if (slot >= entry_depth) apply_node_ownership(phi, source);
 		push_vreg(ctx, merged);
 	}
 }
@@ -491,6 +498,7 @@ static void build_op(SsaBuilderCtx *ctx, IrNode *o, IrNode *next) {
 		i->op1.u.string.str = strdup(o->u.str.s);
 		i->op1.u.string.len = o->u.str.len;
 		i->operand_count = 1;
+		apply_node_ownership(i, o);
 		push_vreg(ctx, dst);
 		break;
 	}
@@ -1019,6 +1027,8 @@ static void build_op(SsaBuilderCtx *ctx, IrNode *o, IrNode *next) {
 							i->needs_free = 1;
 							i->free_func_name = "mem_free";
 						}
+						if (i->needs_free)
+							i->ownership = SSA_OWNERSHIP_OWNED;
 					}
 					found = true;
 				break;
@@ -1126,6 +1136,14 @@ static void build_op(SsaBuilderCtx *ctx, IrNode *o, IrNode *next) {
 						int has_result = runtime_builtin ? runtime_builtin->result_count : call_type != SSA_TYPE_VOID;
 						VReg dst = has_result ? ssa_new_vreg(ctx->cur_func, call_type) : 0;
 						SsaInst *i = alloc_inst(ctx->cur_block, SSA_OP_CALL, call_type, dst);
+						if (matched_def && !matched_def->is_extern &&
+							matched_def->ownership_checked) {
+							i->escape_summary_known = true;
+							for (int a = 0; a < matched_def->param_count && a < 64; ++a)
+								if (matched_def->param_may_escape &&
+									matched_def->param_may_escape[a])
+									i->param_escape_mask |= UINT64_C(1) << a;
+						}
 						i->operand_cap = nparams + 1;
 						i->operands = malloc(sizeof(SsaOperand) * i->operand_cap);
 
@@ -1147,6 +1165,7 @@ static void build_op(SsaBuilderCtx *ctx, IrNode *o, IrNode *next) {
 
 						if (has_result) {
 							apply_builtin_ownership(i, runtime_builtin);
+							apply_node_ownership(i, o);
 							push_vreg(ctx, dst);
 						}
 					}
@@ -1241,6 +1260,7 @@ static void build_op(SsaBuilderCtx *ctx, IrNode *o, IrNode *next) {
 				phi->operands[2] = make_vreg_opnd(else_stack[slot]);
 				phi->operands[3].kind = SSA_OPND_BLOCK;
 				phi->operands[3].u.block = else_exit;
+				if (slot >= entry_depth) apply_node_ownership(phi, o);
 				push_vreg(ctx, merged);
 			}
 		} else {
@@ -1516,7 +1536,7 @@ static void build_op(SsaBuilderCtx *ctx, IrNode *o, IrNode *next) {
 		exit_count++;
 
 		merge_stack_exits(ctx, end_b, entry_stack, entry_depth,
-			exits, exit_count, "switch");
+			exits, exit_count, "switch", o);
 		for (int i = 0; i < exit_count; ++i) free_stack_exit(&exits[i]);
 		free(exits);
 		free(entry_stack);
@@ -1624,7 +1644,7 @@ static void build_op(SsaBuilderCtx *ctx, IrNode *o, IrNode *next) {
 			exits[1] = capture_stack_exit(ctx);
 			if (exits[1].live) ssa_emit_jmp(exits[1].exit, end_b);
 			merge_stack_exits(ctx, end_b, entry_stack, entry_depth,
-				exits, 2, "try/catch");
+				exits, 2, "try/catch", o);
 			free_stack_exit(&exits[0]);
 			free_stack_exit(&exits[1]);
 			free(entry_stack);

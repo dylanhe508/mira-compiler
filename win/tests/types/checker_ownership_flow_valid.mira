@@ -1,0 +1,22 @@
+fn make_owned() -> str { "own" "ed" str-cat }
+
+fn emit(value: str) -> void { print(value); }
+
+fn return_value(value: str) -> str { value }
+
+fn choose(flag: bool) -> str {
+    if (flag) { "nes" "ted" str-cat } else { "borrowed" }
+}
+
+fn nested(outer: bool, inner: bool) -> str {
+    if (outer) { choose(inner) } else { "nes" "ted" str-cat }
+}
+
+fn main() -> void {
+    emit(make_owned());
+    print(choose(false));
+    print(nested(false, true));
+    print(return_value("ret" "urned" str-cat));
+    let stored: str = "sto" "red" str-cat;
+    print(stored);
+}

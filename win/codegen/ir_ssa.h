@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include "decision.h"
+#include "../typecheck.h"
 
 /* ========== 绫诲瀷绯荤粺 (SSA Type System) ========== */
 typedef enum {
@@ -20,6 +21,14 @@ typedef enum {
 	SSA_TYPE_V4I64,   /* four packed 64-bit integer lanes */
 	SSA_TYPE_VOID     /* void / no value */
 } SsaType;
+
+typedef enum {
+	SSA_OWNERSHIP_UNKNOWN = 0,
+	SSA_OWNERSHIP_BORROWED,
+	SSA_OWNERSHIP_OWNED,
+	SSA_OWNERSHIP_MAYBE_OWNED,
+	SSA_OWNERSHIP_ESCAPED
+} SsaOwnership;
 
 /* ========== 铏氭嫙瀵勫瓨鍣?(Virtual Register) ========== */
 /* 铏氭嫙瀵勫瓨鍣ㄤ粠 1 寮€濮嬬紪鍙枫€? 琛ㄧず鏃犳晥/鏃犲瘎瀛樺櫒銆?*/
@@ -194,6 +203,10 @@ typedef struct SsaInst {
 	/* === 静态引用所有权分析 (Static Reference Ownership) === */
 	int needs_free;               /* 1 = 此指令产生的 VReg 持有堆内存，生命周期结束时需自动释放 */
 	const char *free_func_name;   /* 释放函数的符号名 (如 "mem_free", "mira_list_free") */
+	SsaOwnership ownership;
+	VReg owner_token;
+	uint64_t param_escape_mask;
+	bool escape_summary_known;
 	bool ref_observable;
 	bool ref_analyzed;
 	/* Bounded compile-time VM evidence.  Policy is advisory only: static
@@ -202,6 +215,22 @@ typedef struct SsaInst {
 	uint64_t vm_not_taken;
 	uint8_t branch_policy; /* SsaBranchPolicy */
 } SsaInst;
+
+static inline void ssa_inst_apply_checked_ownership(SsaInst *inst,
+	MiraOwnership ownership, const char *free_func_name) {
+	if (!inst) return;
+	switch (ownership) {
+	case MIRA_OWNERSHIP_BORROWED: inst->ownership = SSA_OWNERSHIP_BORROWED; break;
+	case MIRA_OWNERSHIP_OWNED: inst->ownership = SSA_OWNERSHIP_OWNED; break;
+	case MIRA_OWNERSHIP_MAYBE_OWNED:
+		inst->ownership = SSA_OWNERSHIP_MAYBE_OWNED; break;
+	case MIRA_OWNERSHIP_ESCAPED: inst->ownership = SSA_OWNERSHIP_ESCAPED; break;
+	case MIRA_OWNERSHIP_UNKNOWN:
+	default: inst->ownership = SSA_OWNERSHIP_UNKNOWN; break;
+	}
+	inst->free_func_name = free_func_name;
+	inst->needs_free = inst->ownership == SSA_OWNERSHIP_OWNED;
+}
 
 /* ========== 鍩烘湰鍧?(Basic Block) ========== */
 typedef struct SsaBasicBlock {
@@ -378,6 +407,8 @@ static inline bool ssa_phi_prefix_is_valid(const SsaFunction *func,
 void ssa_init_module(SsaModule *mod);
 void ssa_free_module(SsaModule *mod);
 void ssa_destroy_phis_module(SsaModule *mod);
+VReg ssa_phi_owner_token_for_value(const SsaFunction *func, VReg value);
+void ssa_phi_owner_tokens_release_function(const SsaFunction *func);
 
 void ssa_ref_analyze_module(SsaModule *mod);
 void ssa_ref_free_module(SsaModule *mod);

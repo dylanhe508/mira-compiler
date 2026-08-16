@@ -60,6 +60,44 @@ if ($Group -in @('all', 'ownership')) {
     if ($LASTEXITCODE -ne 0) { throw 'ownership metadata test build failed' }
     & $ownershipMetadataExe | Out-Host
     if ($LASTEXITCODE -ne 0) { throw 'ownership metadata test failed' }
+    $ownershipSsaExe = Get-BinaryPath $types 'ownership_ssa_metadata_test'
+    & $Gcc -O0 "-I$root" (Join-Path $PSScriptRoot 'ownership_ssa_metadata_test.c') -o $ownershipSsaExe
+    if ($LASTEXITCODE -ne 0) { throw 'ownership SSA metadata test build failed' }
+    & $ownershipSsaExe | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw 'ownership SSA metadata test failed' }
+    $ownershipBuilderExe = Get-BinaryPath $types 'ownership_ssa_builder_test'
+    $ownershipBuilderSources = @(
+        (Join-Path $PSScriptRoot 'ownership_ssa_builder_test.c'),
+        (Join-Path $root 'lexer.c'), (Join-Path $root 'parser.c'),
+        (Join-Path $root 'typecheck.c'), (Join-Path $root 'memory.c'),
+        (Join-Path $root 'error.c'), (Join-Path $root 'hash.c'),
+        (Join-Path $root 'codegen/stdlib_builtins.c'),
+        (Join-Path $root 'codegen/ssa_builder.c'),
+        (Join-Path $root 'codegen/ssa_function_index.c'),
+        (Join-Path $root 'codegen/ssa_mem2reg.c'),
+        (Join-Path $root 'codegen/ssa_dom.c')
+    )
+    & $Gcc -O0 "-I$root" $ownershipBuilderSources -o $ownershipBuilderExe
+    if ($LASTEXITCODE -ne 0) { throw 'ownership SSA builder test build failed' }
+    & $ownershipBuilderExe | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw 'ownership SSA builder test failed' }
+    Push-Location $types
+    try {
+        $ownershipExpected = "owned`nborrowed`nnested`nreturned`nstored"
+        foreach ($level in @(0, 3)) {
+            & $Mira "-O$level" 'checker_ownership_flow_valid.mira' | Out-Host
+            if ($LASTEXITCODE -ne 0) { throw "checker ownership O$level compile failed" }
+            $ownershipProgram = Get-BinaryPath $types 'checker_ownership_flow_valid'
+            $actual = ((& $ownershipProgram) -join "`n").Trim()
+            if ($LASTEXITCODE -ne 0) { throw "checker ownership O$level run failed" }
+            if ($actual -ne $ownershipExpected) {
+                throw "checker ownership O$level output '$actual', expected '$ownershipExpected'"
+            }
+            Write-Output "CHECKER OWNERSHIP O$level PASS"
+        }
+    } finally {
+        Pop-Location
+    }
     Write-Output 'CHECKER OWNERSHIP PASS'
 }
 
