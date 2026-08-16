@@ -40,6 +40,27 @@ try {
         throw 'dynamic shift no longer uses the required CL path'
     }
     Write-Output 'SHIFT IMMEDIATE CODEGEN PASS'
+
+    $affineIrPath = Join-Path $types 'nested_affine_codegen.ir'
+    & $Mira -O3 'nested_affine_codegen.mira' | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw 'nested affine executable compile failed' }
+    & $Mira -S 'nested_affine_codegen.mira' $affineIrPath -O3 | Out-Host
+    if ($LASTEXITCODE -ne 0) { throw 'nested affine assembly compile failed' }
+    $affineActual = ((& (Join-Path $types 'nested_affine_codegen')) -join "`n").Trim()
+    if ($LASTEXITCODE -ne 0) { throw 'nested affine run failed' }
+    $affineExpected = "9223372036854775794`n9223372036854775773`n9223372036854775801`n1032872415966010168"
+    if ($affineActual -ne $affineExpected) {
+        throw "nested affine output mismatch: $affineActual"
+    }
+    $affineIr = Get-Content -Raw -LiteralPath $affineIrPath
+    $affineMatch = [regex]::Match($affineIr,
+        '(?ms)^nested_affine:\r?\n(?<body>.*?)(?=^[A-Za-z_][A-Za-z0-9_]*:\r?$|\z)')
+    $affineMultiplyCount = ([regex]::Matches($affineMatch.Groups['body'].Value,
+        '(?m)^\s*imul ')).Count
+    if ($affineMultiplyCount -gt 3) {
+        throw "offset coordinate multiplies remain: $affineMultiplyCount"
+    }
+    Write-Output 'NESTED AFFINE CODEGEN PASS'
 } finally {
     Pop-Location
 }

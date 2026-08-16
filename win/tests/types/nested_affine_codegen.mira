@@ -1,0 +1,44 @@
+fn cell(r: i64, c: i64, seed: i64) -> i64 {
+    (r * 73856093) ^ (c * 19349663) ^ seed
+}
+
+fn offset_edges(base: i64) {
+    print(base * 7);
+    print((base - 3) * 7);
+    print((base + 1) * 7);
+}
+
+fn nested_affine(rows: i64, cols: i64, rounds: i64) -> i64 {
+    mut total: i64 = 0;
+    mut round: i64 = 0;
+    while (round < rounds) {
+        mut r: i64 = 1;
+        while (r < rows - 1) {
+            mut row: i64 = 0;
+            mut c: i64 = 1;
+            while (c < cols - 1) {
+                mut value: i64 = cell(r, c, round + 17) * 4;
+                value = value + cell(r - 1, c, round + 17);
+                value = value + cell(r + 1, c, round + 17);
+                value = value + cell(r, c - 1, round + 17);
+                value = value + cell(r, c + 1, round + 17);
+                value = value / 8;
+                if ((value & 7) == 0) {
+                    row = row - value;
+                } else {
+                    row = row + value;
+                }
+                c = c + 1;
+            }
+            total = total * 17 + row;
+            r = r + 1;
+        }
+        round = round + 1;
+    }
+    total
+}
+
+fn main() {
+    offset_edges(9223372036854775806);
+    print(nested_affine(17, 19, 4));
+}

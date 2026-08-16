@@ -2316,6 +2316,89 @@ static bool vreg_is_induction_phi(const SsaFunction *func, VReg value,
     return saw_entry && saw_latch;
 }
 
+/* Reuse an earlier base product for offset coordinates:
+ *   (base +/- delta) * factor -> (base * factor) +/- delta * factor.
+ * Integer arithmetic is modulo 2^64, so the identity also holds on overflow.
+ * The base product must already dominate locally by appearing earlier in the
+ * same block; no code motion or speculative execution is introduced. */
+static bool ssa_opt_reuse_offset_products(SsaFunction *func) {
+    bool changed = false;
+    if (!func || mira_opt_level < 3) return false;
+    for (int bi = 0; bi < func->block_count; ++bi) {
+        SsaBasicBlock *block = func->blocks[bi];
+        for (SsaInst *mul = block->inst_head; mul; mul = mul->next) {
+            if (mul->IrNode != SSA_OP_MUL || mul->type != SSA_TYPE_INT ||
+                !mul->dst) continue;
+            SsaOperand offset_value = mul->op1;
+            int64_t factor = 0;
+            if (!operand_constant(func, mul->op2, &factor)) {
+                offset_value = mul->op2;
+                if (!operand_constant(func, mul->op1, &factor)) continue;
+            }
+            if (offset_value.kind != SSA_OPND_VREG) continue;
+            VReg offset_vreg = strip_copy_vreg(func, offset_value.u.vreg);
+            SsaInst *offset = offset_vreg < (VReg)func->vreg_defs_cap
+                ? func->vreg_defs[offset_vreg] : NULL;
+            if (!offset || (offset->IrNode != SSA_OP_ADD &&
+                            offset->IrNode != SSA_OP_SUB)) continue;
+
+            SsaOperand base = offset->op1;
+            int64_t delta = 0;
+            bool subtract = offset->IrNode == SSA_OP_SUB;
+            if (!operand_constant(func, offset->op2, &delta)) {
+                if (subtract || !operand_constant(func, offset->op1, &delta))
+                    continue;
+                base = offset->op2;
+            }
+            if (base.kind != SSA_OPND_VREG) continue;
+            VReg base_vreg = strip_copy_vreg(func, base.u.vreg);
+            SsaInst *base_def = base_vreg < (VReg)func->vreg_defs_cap
+                ? func->vreg_defs[base_vreg] : NULL;
+            int base_slot = base_def && base_def->IrNode == SSA_OP_LOAD_VAR &&
+                base_def->op1.kind == SSA_OPND_IMM
+                ? (int)base_def->op1.u.imm : -1;
+            SsaInst *base_mul = NULL;
+            for (SsaInst *scan = mul->prev; scan; scan = scan->prev) {
+                if (base_slot >= 0 && scan->IrNode == SSA_OP_STORE_VAR &&
+                    scan->op2.kind == SSA_OPND_IMM &&
+                    (int)scan->op2.u.imm == base_slot)
+                    break;
+                if (scan->IrNode != SSA_OP_MUL || scan->type != SSA_TYPE_INT ||
+                    !scan->dst) continue;
+                SsaOperand scan_value = scan->op1;
+                int64_t scan_factor = 0;
+                if (!operand_constant(func, scan->op2, &scan_factor)) {
+                    scan_value = scan->op2;
+                    if (!operand_constant(func, scan->op1, &scan_factor))
+                        continue;
+                }
+                VReg scan_vreg = scan_value.kind == SSA_OPND_VREG
+                    ? strip_copy_vreg(func, scan_value.u.vreg) : 0;
+                SsaInst *scan_def = scan_vreg < (VReg)func->vreg_defs_cap
+                    ? func->vreg_defs[scan_vreg] : NULL;
+                bool same_slot = base_slot >= 0 && scan_def &&
+                    scan_def->IrNode == SSA_OP_LOAD_VAR &&
+                    scan_def->op1.kind == SSA_OPND_IMM &&
+                    (int)scan_def->op1.u.imm == base_slot;
+                if (scan_factor == factor && scan_value.kind == SSA_OPND_VREG &&
+                    (scan_vreg == base_vreg || same_slot)) {
+                    base_mul = scan;
+                    break;
+                }
+            }
+            if (!base_mul) continue;
+            mul->IrNode = subtract ? SSA_OP_SUB : SSA_OP_ADD;
+            mul->op1.kind = SSA_OPND_VREG;
+            mul->op1.u.vreg = base_mul->dst;
+            mul->op2.kind = SSA_OPND_IMM;
+            mul->op2.u.imm = (int64_t)((uint64_t)delta * (uint64_t)factor);
+            mul->operand_count = 2;
+            changed = true;
+        }
+    }
+    return changed;
+}
+
 /*
  * Replace a proven loop induction product with a derived recurrence:
  *
@@ -3288,6 +3371,8 @@ void ssa_optimize_function(SsaFunction *func) {
 
     /* Capture canonical loop facts before forwarding/DCE rewrite definitions. */
     ssa_analyze_loops(func);
+
+    ssa_opt_reuse_offset_products(func);
 
     /* Run while retained variable loads/stores still expose the canonical
      * induction relation.  The pass currently accepts only innermost loops,
