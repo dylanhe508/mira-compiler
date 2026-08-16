@@ -18,7 +18,32 @@ static int64_t branchy_recurrence(int64_t n) {
     return checksum + bucket0 + bucket1 + bucket2;
 }
 
+static int64_t branchy_repeated(int64_t n) {
+    int64_t total = 0;
+    for (int64_t i = 0; i < n; ++i) {
+        if ((i & 1) == 0)
+            total += i * 97;
+        else
+            total -= i * 97;
+        total += i * 97;
+    }
+    return total;
+}
+
+static int64_t branchy_exclusive(int64_t n) {
+    int64_t total = 0;
+    for (int64_t i = 0; i < n; ++i) {
+        if ((i & 1) == 0)
+            total += i * 89;
+        else
+            total -= i * 89;
+    }
+    return total;
+}
+
 int main(void) {
     printf("%" PRId64 "\n", branchy_recurrence(20000));
+    printf("%" PRId64 "\n", branchy_repeated(20000));
+    printf("%" PRId64 "\n", branchy_exclusive(20000));
     return 0;
 }

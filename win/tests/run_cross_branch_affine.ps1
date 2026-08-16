@@ -32,9 +32,6 @@ foreach ($level in 0..3) {
     Write-Output "O$level PASS $actual"
 }
 
-function Count-Multiply([string]$Asm) {
-    @((Get-Content -LiteralPath $Asm) | Select-String '(?i)^\s*imul\s').Count
-}
 $enabledAsm = Join-Path $out 'enabled.asm'
 $disabledAsm = Join-Path $out 'disabled.asm'
 & $Mira -S $source $enabledAsm -O3 | Out-Host
@@ -43,17 +40,43 @@ $env:MIRA_DECISION_DISABLE = 'affine'
 try { & $Mira -S $source $disabledAsm -O3 | Out-Host }
 finally { Remove-Item Env:MIRA_DECISION_DISABLE -ErrorAction SilentlyContinue }
 if ($LASTEXITCODE -ne 0) { throw 'disabled assembly build failed' }
-$enabled = Count-Multiply $enabledAsm
-$disabled = Count-Multiply $disabledAsm
-if ($enabled -ge $disabled) {
-    throw "branch recurrence missing enabled_imul=$enabled disabled_imul=$disabled"
+$enabledLines = Get-Content -LiteralPath $enabledAsm
+$disabledLines = Get-Content -LiteralPath $disabledAsm
+$telemetryStart = ($enabledLines | Select-String '^branchy_recurrence:').LineNumber
+$repeatStart = ($enabledLines | Select-String '^branchy_repeated:').LineNumber
+$exclusiveStart = ($enabledLines | Select-String '^branchy_exclusive:').LineNumber
+$mainStart = ($enabledLines | Select-String '^mira_main:').LineNumber
+$disabledTelemetryStart = ($disabledLines | Select-String '^branchy_recurrence:').LineNumber
+$disabledRepeatStart = ($disabledLines | Select-String '^branchy_repeated:').LineNumber
+$disabledExclusiveStart = ($disabledLines | Select-String '^branchy_exclusive:').LineNumber
+$disabledMainStart = ($disabledLines | Select-String '^mira_main:').LineNumber
+$body = $enabledLines[($telemetryStart - 1)..($repeatStart - 2)]
+$disabledBody = $disabledLines[($disabledTelemetryStart - 1)..($disabledRepeatStart - 2)]
+$repeatBody = $enabledLines[($repeatStart - 1)..($exclusiveStart - 2)]
+$disabledRepeatBody = $disabledLines[($disabledRepeatStart - 1)..($disabledExclusiveStart - 2)]
+$exclusiveBody = $enabledLines[($exclusiveStart - 1)..($mainStart - 2)]
+$disabledExclusiveBody = $disabledLines[($disabledExclusiveStart - 1)..($disabledMainStart - 2)]
+$singleEnabled = @($body | Select-String '(?i)^\s*imul\s').Count
+$singleDisabled = @($disabledBody | Select-String '(?i)^\s*imul\s').Count
+$repeatEnabled = @($repeatBody | Select-String '(?i)^\s*imul\s').Count
+$repeatDisabled = @($disabledRepeatBody | Select-String '(?i)^\s*imul\s').Count
+$exclusiveEnabled = @($exclusiveBody | Select-String '(?i)^\s*imul\s').Count
+$exclusiveDisabled = @($disabledExclusiveBody | Select-String '(?i)^\s*imul\s').Count
+if ($singleEnabled -ne $singleDisabled) {
+    throw "single-use branch recurrence should be rejected enabled=$singleEnabled disabled=$singleDisabled"
 }
-$lines = Get-Content -LiteralPath $enabledAsm
-$start = ($lines | Select-String '^branchy_recurrence:').LineNumber
-$finish = ($lines | Select-String '^mira_main:').LineNumber
-$body = $lines[($start - 1)..($finish - 2)]
+if ($repeatEnabled -ge $repeatDisabled) {
+    throw "repeated branch recurrence missing enabled=$repeatEnabled disabled=$repeatDisabled"
+}
+if ($exclusiveEnabled -ne $exclusiveDisabled) {
+    throw "mutually exclusive recurrence should be rejected enabled=$exclusiveEnabled disabled=$exclusiveDisabled"
+}
+$cmov = @($repeatBody | Select-String '(?i)^\s*cmov').Count
+if ($cmov -ne 0) {
+    throw "periodic branch was if-converted cmov=$cmov"
+}
 $spills = @($body | Select-String '\[rbp \+ -').Count
 if ($spills -ne 0) {
     throw "branch selector spilled after recurrence spills=$spills"
 }
-Write-Output "SHAPE PASS enabled_imul=$enabled disabled_imul=$disabled spills=0"
+Write-Output "SHAPE PASS single=$singleEnabled/$singleDisabled repeated=$repeatEnabled/$repeatDisabled exclusive=$exclusiveEnabled/$exclusiveDisabled cmov=0 spills=0"

@@ -301,6 +301,8 @@ static int vm_exec(SsaFunction *func, const int64_t *args, int nargs,
                 }
                 if (a != 0) i->vm_taken++;
                 else i->vm_not_taken++;
+                i->vm_history = (i->vm_history << 1) | (a != 0);
+                if (i->vm_history_count < 64) i->vm_history_count++;
                 next = i->operands[a != 0 ? 0 : 1].u.block; break;
             case SSA_OP_RET:
                 free(values); free(vars); return 1;
@@ -469,18 +471,34 @@ void ssa_vm_profile_module(SsaModule *mod) {
                 DecisionResult decision;
                 DecisionKind kind = decision_choose_branch(inst->vm_taken,
                     inst->vm_not_taken, 1, &decision);
-                if (kind == DECISION_BRANCH)
+                int period = 0;
+                if (inst->vm_history_count >= 32)
+                    for (int candidate = 1; candidate <= 8 && !period;
+                         ++candidate) {
+                        bool matches = true;
+                        for (int bit = 0;
+                             bit + candidate < inst->vm_history_count; ++bit)
+                            if (((inst->vm_history >> bit) & 1u) !=
+                                ((inst->vm_history >> (bit + candidate)) & 1u)) {
+                                matches = false;
+                                break;
+                            }
+                        if (matches) period = candidate;
+                    }
+                if (period)
+                    inst->branch_policy = SSA_BRANCH_PREFER_JUMP;
+                else if (kind == DECISION_BRANCH)
                     inst->branch_policy = SSA_BRANCH_PREFER_JUMP;
                 else if (kind == DECISION_BRANCHLESS)
                     inst->branch_policy = SSA_BRANCH_PREFER_BRANCHLESS;
                 else
                     inst->branch_policy = SSA_BRANCH_UNKNOWN;
                 if (getenv("MIRA_VM_DEBUG"))
-                    fprintf(stderr, "vm-branch %s block=%d taken=%llu not=%llu policy=%u decision=%s score=%d rejected=0x%x\n",
+                    fprintf(stderr, "vm-branch %s block=%d taken=%llu not=%llu period=%d policy=%u decision=%s score=%d rejected=0x%x\n",
                         func->name ? func->name : "?", inst->parent ? inst->parent->id : -1,
                         (unsigned long long)inst->vm_taken,
                         (unsigned long long)inst->vm_not_taken,
-                        (unsigned)inst->branch_policy, decision_kind_name(kind),
+                        period, (unsigned)inst->branch_policy, decision_kind_name(kind),
                         decision.score, decision.rejected);
             }
         free(profiles[i].hits);

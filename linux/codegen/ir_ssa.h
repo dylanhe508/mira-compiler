@@ -213,6 +213,8 @@ typedef struct SsaInst {
 	 * legality proofs still decide whether a transform may be performed. */
 	uint64_t vm_taken;
 	uint64_t vm_not_taken;
+	uint64_t vm_history;
+	uint8_t vm_history_count;
 	uint8_t branch_policy; /* SsaBranchPolicy */
 } SsaInst;
 

@@ -169,7 +169,6 @@ void ssa_decision_refresh_plans(SsaModule *mod, int optimization_level,
             func->decision_plan.pipeline.allow_vectorize = false;
             func->decision_plan.pipeline.allow_unroll = false;
             func->decision_plan.pipeline.allow_scalar_loop_optimization = false;
-            func->decision_plan.pipeline.allow_affine_recurrence = false;
             func->decision_plan.pipeline.allow_magic_division = false;
             func->decision_plan.pipeline.allow_loop_rotation = false;
         }
@@ -753,7 +752,6 @@ void ssa_analyze_loops(SsaFunction *func) {
             func->decision_plan.pipeline.allow_vectorize = false;
             func->decision_plan.pipeline.allow_unroll = false;
             func->decision_plan.pipeline.allow_scalar_loop_optimization = false;
-            func->decision_plan.pipeline.allow_affine_recurrence = false;
             func->decision_plan.pipeline.allow_magic_division = false;
             func->decision_plan.pipeline.allow_loop_rotation = false;
         }
@@ -2449,29 +2447,29 @@ bool ssa_opt_induction_strength_reduce(SsaFunction *func) {
             continue;
         }
         bool contains_nested_loop = false;
+        bool nested_in_parent = false;
         for (int other = 0; other < func->loop_count; ++other) {
             if (other == li || !func->loops[other].header) continue;
             int header_id = func->loops[other].header->id;
             if (header_id >= 0 && header_id < func->block_count &&
                 loop->members[header_id]) {
                 contains_nested_loop = true;
-                break;
             }
+            int own_header_id = loop->header->id;
+            if (func->loops[other].members && own_header_id >= 0 &&
+                own_header_id < func->block_count &&
+                func->loops[other].members[own_header_id])
+                nested_in_parent = true;
         }
-        if (contains_nested_loop) {
+        if (contains_nested_loop ||
+            (loop->member_count > 4 && nested_in_parent)) {
             if (getenv("MIRA_DECISION_DEBUG"))
-                fprintf(stderr, "ssa-affine-skip function=%s phase=nested\n",
-                        func->name ? func->name : "?");
+                fprintf(stderr,
+                        "ssa-affine-skip function=%s phase=nested contains=%d parent=%d blocks=%u\n",
+                        func->name ? func->name : "?", contains_nested_loop,
+                        nested_in_parent, (unsigned)loop->member_count);
             continue;
         }
-        if (loop->member_count > 4) {
-            if (getenv("MIRA_DECISION_DEBUG"))
-                fprintf(stderr, "ssa-affine-skip function=%s phase=branchy-loop blocks=%u\n",
-                        func->name ? func->name : "?",
-                        (unsigned)loop->member_count);
-            continue;
-        }
-
         SsaBasicBlock *preheader = NULL;
         int outside_preds = 0;
         for (int pi = 0; pi < loop->header->pred_count; ++pi) {
@@ -2554,6 +2552,7 @@ bool ssa_opt_induction_strength_reduce(SsaFunction *func) {
             int64_t factor;
             SsaInst *candidates[64];
             int candidate_count;
+            bool covers_latch;
         } groups[8] = {0};
         int group_count = 0;
         for (int bi = 0; bi < func->block_count; ++bi) {
@@ -2608,6 +2607,8 @@ bool ssa_opt_induction_strength_reduce(SsaFunction *func) {
                 if (groups[group].candidate_count < 64)
                     groups[group].candidates[
                         groups[group].candidate_count++] = inst;
+                if (block_dominates(inst->parent, update_store->parent))
+                    groups[group].covers_latch = true;
             }
         }
         if (getenv("MIRA_DECISION_DEBUG"))
@@ -2645,6 +2646,9 @@ bool ssa_opt_induction_strength_reduce(SsaFunction *func) {
         }
         for (int gi = 0; gi < group_budget; ++gi) {
             if (!groups[gi].candidate_count ||
+                (loop->member_count > 4 &&
+                 (groups[gi].candidate_count < 2 ||
+                  !groups[gi].covers_latch)) ||
                 ssa_internal_next_slot < 0 ||
                 ssa_internal_next_slot == INT_MAX)
                 continue;

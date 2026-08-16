@@ -26,13 +26,15 @@ semantics or adding a new optimization subsystem.
 
 ## Task 3: Inspect generated code and compatibility
 
-- Add a focused RED assertion showing that the new recurrence makes the shared
-  masked branch selector spill in a telemetry-shaped loop.
-- Add a bounded SSA rematerialization helper for immediate-mask `AND` values
-  used by comparisons in remote blocks; clone immediately before the consumer
-  and let the existing dead-code pass remove the long live range.
-- Require the high-pressure fixture to keep the multiply reduction while
-  eliminating local stack accesses.
+- Require at least two same-factor candidates and one candidate that dominates
+  the latch update before adding a recurrence to a top-level branch-heavy
+  loop; keep telemetry, mutually exclusive arms, and nested branch loops on
+  their established paths.
+- Add a repeated-product branch fixture and verify its three static multiply
+  sites are replaced without spills.
+- Extend the bounded Static Reference VM branch evidence with a 64-outcome
+  history and period-1-through-8 detection.  Require a period-2 branch to stay
+  as a jump rather than being converted into two arithmetic arms plus `cmov`.
 - Compile telemetry with decision diagnostics and verify candidate discovery.
 - Compare pre-change and post-change disassembly, confirming that the selected
   loop multiply becomes a recurrence update and that division/branch layout is
