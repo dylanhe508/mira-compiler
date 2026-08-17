@@ -50,3 +50,9 @@ desktop.ini
 
 # ===== Local Git worktrees =====
 .worktrees/
+
+# ===== Internal development workflow =====
+.superpowers/
+docs/superpowers/
+win/docs/superpowers/
+linux/docs/superpowers/
