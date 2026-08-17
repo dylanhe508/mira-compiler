@@ -6,9 +6,19 @@
 #     --perf    追加 O3 性能采样(5 基准 x5 次, 第 2 个数字行=耗时 ns)
 # 退出码: 0=全部 MATCH  1=有 MISMATCH  2=环境错误
 set -u
-cd "$(dirname "$0")"
+CALLER_DIR=$PWD
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+MIRA_ARG=${1:-}
+cd "$SCRIPT_DIR"
 
-MIRA=${1:-../win/mira_hoist.exe}
+if [ -n "$MIRA_ARG" ]; then
+    case "$MIRA_ARG" in
+        /*) MIRA=$MIRA_ARG ;;
+        *)  MIRA="$CALLER_DIR/$MIRA_ARG" ;;
+    esac
+else
+    MIRA="$SCRIPT_DIR/../win/mira.exe"
+fi
 PERF=0
 if [ "${2:-}" = "--perf" ]; then PERF=1; fi
 [ -f "$MIRA" ] || { echo "[ERR] 找不到编译器: $MIRA"; exit 2; }

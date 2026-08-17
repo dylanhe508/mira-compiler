@@ -29,7 +29,7 @@ PASS=0
 fail() { echo "[FAIL] $*" >&2; exit 1; }
 pass() { PASS=$((PASS + 1)); echo "[PASS] $*"; }
 
-VERSION=$($MIRA -v | tr -d '\r')
+VERSION=$($MIRA -v | sed -n '1p' | tr -d '\r')
 case "$VERSION" in mira\ *) ;; *) fail "unexpected version output: $VERSION" ;; esac
 if [ -n "$EXPECTED_VERSION" ] && [ "$VERSION" != "mira $EXPECTED_VERSION" ]; then
     fail "version is '$VERSION', expected 'mira $EXPECTED_VERSION'"
@@ -114,7 +114,8 @@ compile_run_all_opts 'stdlib_data_modules.mira' \
     $'3\n10\n25\n30\n1\n1\n0\n77\n\n-7\n12\n22\n1\n0\n2\n-7\n-2\n0\n5\n5\n9\n12\n12\n-7\n12\n-7\n99\n-7\n6\n0'
 
 # Typed SSA and ownership/control-flow regressions.
-compile_run_all_opts 'types/ssa_typed_values.mira' $'2.5\n2.5\ntyped\n1\nvoid'
+compile_run_all_opts 'types/ssa_typed_values.mira' \
+    $'2.5\n2.5\n3.5\n7.5\ntyped\n1\nvoid'
 compile_run_all_opts 'types/f64_comparisons_valid.mira' \
     $'0\n1\n1\n1\n1\n1\n1\n0\n0\n1\n0\n0\n0\n0'
 compile_run_all_opts 'types/if_owned_string_phi_valid.mira' \

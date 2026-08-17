@@ -32,9 +32,9 @@ fn main() {
     fill_seq(left, 10, 10);
     fill_seq(right, 10, 100);
 
-    777 dst !;
+    777 (dst) !;
     add_arrays(dst, left, right, 0);
-    print(dst @);
+    print((dst) @);
 
     add_arrays(dst, left, right, 1); print_seq(dst, 1);
     add_arrays(dst, left, right, 3); print_seq(dst, 3);
