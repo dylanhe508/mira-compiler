@@ -7,6 +7,10 @@ win/regress.sh
 linux/regress.sh
 bench/bench_regress.sh
 
+Shared formal regression implementation retained
+------------------------------------------------
+regress-common.sh
+
 Long-lived tools retained
 -------------------------
 bench/fuzz_mira.py
