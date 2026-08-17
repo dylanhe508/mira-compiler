@@ -1247,8 +1247,11 @@ void ssa_lower_function(SsaFunction *func, IrBuffer *ir) {
 				
 				if (cond_def && cond_def->IrNode >= SSA_OP_CMP_EQ && cond_def->IrNode <= SSA_OP_CMP_GE) {
 					/* 閾诲秴鎮? 閻╁瓨甯?cmp + jcc */
-					IrReg scratch  = REG_RCX;
-					IrReg scratch2 = REG_RDX;
+					/* Branch compares must use allocator-reserved scratch registers.
+					 * An allocated RHS may already live in RCX/RDX; reloading a
+					 * spilled LHS there would otherwise turn the compare into r,r. */
+					IrReg scratch  = REG_R10;
+					IrReg scratch2 = REG_R11;
 					IrReg r1 = load_operand(ir, func, cond_def->op1, scratch);
 					if (cond_def->op2.kind == SSA_OPND_IMM && cond_def->op2.u.imm >= INT32_MIN && cond_def->op2.u.imm <= INT32_MAX) {
 						ir_cmp_reg_imm(ir, r1, cond_def->op2.u.imm);

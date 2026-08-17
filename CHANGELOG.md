@@ -39,6 +39,8 @@
 - Improved pressure-aware machine scheduling and hot-loop code generation.
 - Fixed floating-point ABI parameter loads and typed value handling on Win64
   and SysV paths.
+- Fixed spilled branch comparisons so reloading one operand cannot overwrite
+  an operand already assigned to RCX or RDX.
 - Preserved representative optimized executable size and output checks in the
   release regression suite.
 
@@ -46,6 +48,7 @@
 
 - Consolidated long-lived validation into `win/regress.sh`,
   `linux/regress.sh` and `bench/bench_regress.sh`.
+- Added native Linux release validation and an x86-64 Linux binary package.
 - Removed one-off feature runners, probes and temporary measurement scripts
   while retaining all tracked Mira and C regression cases.
 

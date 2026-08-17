@@ -54,11 +54,14 @@ make -C linux -j
 
 ## Validation
 
-The Windows release build is checked by the consolidated formal regression:
+The Windows and native Linux release builds are checked by the consolidated
+formal regression and GCC-reference benchmark suite:
 
 ```sh
 bash win/regress.sh
 bash bench/bench_regress.sh win/mira.exe
+bash linux/regress.sh
+bash bench/bench_regress.sh linux/mira
 ```
 
 The formal suite covers CLI parsing and artifact modes, IR/assembly writers,
@@ -66,15 +69,15 @@ O0-O3 execution goldens, gradual types, floating point, ownership/control-flow
 merges, modules, standard-library modules and representative diagnostics.
 
 The Windows and Linux platform-neutral source mirrors are checked for
-synchronization, and Linux translation units receive host-side syntax/object
-validation. Native Linux execution could not be performed in the release
-environment because no usable WSL distribution was available. For that
-reason v5.14.0 ships a Linux source tree, but no claimed native Linux binary.
+synchronization. The Linux compiler is built and executed natively on Ubuntu
+26.04 under WSL2: all 23 formal suites pass, and all 20 O0-O3 benchmark
+checksum comparisons match their GCC references.
 
 ## Packages
 
 - `mira-compiler-v5.14.0-source.zip`
 - `mira-compiler-v5.14.0-windows-x86_64.zip`
+- `mira-compiler-v5.14.0-linux-x86_64.zip`
 - `SHA256SUMS.txt`
 
 This repository currently has no `LICENSE` file. v5.14.0 does not invent or
