@@ -51,7 +51,7 @@
 - 输出：`bool mira_cli_parse(int argc, char **argv, MiraCliOptions *out, char *error, size_t error_size)`
 - 后续任务只读取 `MiraCliOptions`，不得再次扫描 argv。
 
-- [ ] **步骤 1：写出命令解析器接口和失败测试**
+- [x] **步骤 1：写出命令解析器接口和失败测试**
 
 `cli.h` 固定以下类型：
 
@@ -109,7 +109,7 @@ parse_error("mira a.mira b.mira", "multiple input files");
 parse_error("mira --mystery a.mira", "unknown option '--mystery'");
 ```
 
-- [ ] **步骤 2：运行测试并确认 RED**
+- [x] **步骤 2：运行测试并确认 RED**
 
 运行：
 
@@ -119,7 +119,7 @@ powershell -ExecutionPolicy Bypass -File .\win\tests\run_cli_parse.ps1
 
 预期：C 测试因 `mira_cli_parse` 尚未实现而编译或链接失败。
 
-- [ ] **步骤 3：实现最小解析状态机**
+- [x] **步骤 3：实现最小解析状态机**
 
 `cli.c` 使用单次从左到右扫描；默认值固定为：
 
@@ -152,7 +152,7 @@ powershell -ExecutionPolicy Bypass -File .\win\tests\run_cli_parse.ps1
 用一个 `set_emit()` helper 拒绝重复且不同的模式；任何以 `-` 开头但不在表中的
 参数立即写入 `error` 并返回 `false`。编译命令只允许一个非选项输入。
 
-- [ ] **步骤 4：运行 focused GREEN 并镜像**
+- [x] **步骤 4：运行 focused GREEN 并镜像**
 
 运行两端 C 测试；预期均输出：
 
@@ -162,7 +162,7 @@ CLI PARSE PASS
 
 随后比较归一化换行后的 `cli.h`、`cli.c`、`cli_parse_test.c`，预期零差异。
 
-- [ ] **步骤 5：提交**
+- [x] **步骤 5：提交**
 
 ```text
 git add win/cli.* linux/cli.* win/tests/cli_parse_test.c linux/tests/cli_parse_test.c win/tests/run_cli_parse.ps1 linux/tests/run_cli_parse.ps1 win/Makefile linux/Makefile
@@ -185,7 +185,7 @@ git commit -m "feat(cli): parse explicit output modes"
 - 产生：`static void compile_unit_dispose(MiraCompileUnit *unit)`
 - 消费：任务 3–5 的 IR、ASM、OBJ、EXE 写出路径。
 
-- [ ] **步骤 1：写共享流水线 RED**
+- [x] **步骤 1：写共享流水线 RED**
 
 使用会触发 late IR 优化的固定程序，并分别执行：
 
@@ -197,7 +197,7 @@ git commit -m "feat(cli): parse explicit output modes"
 测试要求 `from_ir.ir` 不再包含 late pass 应删除的 `add reg, 0`，并含 O3 调度后
 的稳定模式。当前编译器不认识 `--emit=ir`，预期真实 RED 为非零退出。
 
-- [ ] **步骤 2：提取唯一 finalizer**
+- [x] **步骤 2：提取唯一 finalizer**
 
 从 `compile_file_obj()` 中抽出且只保留一份：
 
@@ -229,7 +229,7 @@ typedef struct {
 `MiraCompileUnit`；`compile_unit_dispose()` 在产物写出后释放源码和导入路径。
 OBJ、EXE、ASM 和 IR 不能各自再调用 finalizer。
 
-- [ ] **步骤 3：接入 `MiraCliOptions` 并实现临时 `--emit=ir` 终点**
+- [x] **步骤 3：接入 `MiraCliOptions` 并实现临时 `--emit=ir` 终点**
 
 `main()` 只调用一次 `mira_cli_parse()`，然后设置：
 
@@ -247,7 +247,7 @@ ir_dump(final_ir, out);
 fclose(out);
 ```
 
-- [ ] **步骤 4：验证共享流水线 GREEN 与普通编译哈希不变**
+- [x] **步骤 4：验证共享流水线 GREEN 与普通编译哈希不变**
 
 先在改动前记录 `regression_phi_inline.mira` O0/O3 的 EXE SHA-256 与 OBJ 的节
 内容；改动后重新 clean build 并比较。EXE 哈希必须相同。COFF OBJ 的文件头
@@ -260,7 +260,7 @@ fclose(out);
 FINAL IR PIPELINE PASS
 ```
 
-- [ ] **步骤 5：提交**
+- [x] **步骤 5：提交**
 
 ```text
 git add win/main.c linux/main.c win/tests/final_ir_pipeline.mira linux/tests/final_ir_pipeline.mira win/tests/run_cli_emit_modes.ps1 linux/tests/run_cli_emit_modes.ps1
@@ -333,7 +333,7 @@ fprintf(out, "  ; unknown opcode %d\n", inst->IrNode);
 至少运行 hot-loop、gradual SSA、removed-cli、affine、divrem、cross-branch 系列。
 预期所有脚本 PASS，且 `rg` 不再找到把 `-S` 输出当 IR 解析的活跃测试。
 
-- [ ] **步骤 5：提交**
+- [x] **步骤 5：提交**
 
 ```text
 git commit -m "test(cli): move IR inspection to explicit emit mode"
@@ -442,7 +442,7 @@ mira_error_simple(1, "cannot emit assembly for opcode %d to '%s'",
 运行 opcode C 测试、端到端脚本以及 O0–O3 的整数、f64、字符串、分支、调用、
 BSS 和 AVX fixture。预期 `.s` 均能由宿主 `gcc -c` 接受；`-S` 与长选项哈希相同。
 
-- [ ] **步骤 5：提交**
+- [x] **步骤 5：提交**
 
 ```text
 git commit -m "feat(cli): emit GNU Intel assembly"
@@ -529,7 +529,7 @@ obj、exe，最终输出：
 CLI EMIT MODES PASS
 ```
 
-- [ ] **步骤 5：提交**
+- [x] **步骤 5：提交**
 
 ```text
 git commit -m "feat(cli): finish explicit artifact outputs"
@@ -548,7 +548,7 @@ git commit -m "feat(cli): finish explicit artifact outputs"
 - 输入：任务 1–5 的完整实现。
 - 输出：可复现的验收报告和干净工作树。
 
-- [ ] **步骤 1：执行 Windows clean build 与全 CLI 回归**
+- [x] **步骤 1：执行 Windows clean build 与全 CLI 回归**
 
 运行：
 
@@ -561,13 +561,13 @@ powershell -ExecutionPolicy Bypass -File .\win\tests\run_cli_emit_modes.ps1 -Gro
 
 预期全部 exit 0。
 
-- [ ] **步骤 2：执行语言与优化回归**
+- [x] **步骤 2：执行语言与优化回归**
 
 至少运行 gradual all、modules O0–O3、float O0–O3、infix、short-circuit、
 branch-return、stdlib core/data、hot-loop、divrem、affine、cross-branch。所有既有
 golden 输出必须不变。
 
-- [ ] **步骤 3：执行对象、汇编和产物稳定性验证**
+- [x] **步骤 3：执行对象、汇编和产物稳定性验证**
 
 验证：
 
@@ -577,13 +577,13 @@ golden 输出必须不变。
   的时间戳归一化规则比较；
 - 未跟踪或已跟踪目录中没有遗留 `.exe/.obj/.o/.s/.ir` 测试产物。
 
-- [ ] **步骤 4：核对 Windows/Linux 镜像**
+- [x] **步骤 4：核对 Windows/Linux 镜像**
 
 对本次所有平台无关文件归一化 CRLF/LF 后做 SHA-256 manifest。预期零差异；
 平台相关差异必须在报告中逐项说明。若 WSL 仍因 `E_ACCESSDENIED` 不可用，只能
 报告 Linux 源码/语法/宿主编译检查，不能声称完成原生 Linux 运行。
 
-- [ ] **步骤 5：写报告、检查并提交**
+- [x] **步骤 5：写报告、检查并提交**
 
 报告记录所有命令、exit code、关键 stdout、产物 hash/size、镜像 manifest 和
 Linux 环境限制。随后运行：
