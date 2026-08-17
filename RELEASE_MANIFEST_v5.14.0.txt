@@ -1,0 +1,76 @@
+Mira v5.14.0 release repository manifest
+========================================
+
+Authoritative regression entry points retained
+----------------------------------------------
+win/regress.sh
+linux/regress.sh
+bench/bench_regress.sh
+
+Long-lived tools retained
+-------------------------
+bench/fuzz_mira.py
+bench/fuzz_work/mira2c.py
+bench/fuzz_work/verify_win.py
+win/c2mira.py
+win/tools/c2mira.py
+
+Regression assets retained
+--------------------------
+- All tracked *.mira fixtures under win/tests and linux/tests.
+- All tracked test *.c fixtures under win/tests and linux/tests.
+- Module, standard-library, type, CLI, optimizer and code-generation cases.
+- The bench sources and gcc reference sources used by bench/bench_regress.sh.
+
+Phase-specific scripts removed after coverage consolidation
+----------------------------------------------------------
+- Every tracked *.ps1 under win/tests and linux/tests, including *.before-*.ps1.
+- Every tracked *.sh under win/probe.
+- win/fulltest.sh
+- win/bench_compile_time.sh
+- win/bench31.sh
+- win/bench31_mem.sh
+- win/bench31_v.sh
+- win/rc_test.sh
+- win/repro_o3.sh
+- win/runall.sh
+- win/runall_o3.sh
+- win/summary.sh
+- linux/bench_compile_time.sh
+- linux/bench31.sh
+- linux/bench31_mem.sh
+- linux/bench31_v.sh
+- linux/bisect_msl.sh
+- linux/mask_test.sh
+- linux/rc_test.sh
+- linux/repro_o3.sh
+- linux/runall.sh
+- linux/runall_o3.sh
+- linux/summary.sh
+- bench/bench_run.sh
+- bench/fuzz_work/measure.py
+- bench/fuzz_work/minim/rectest.py
+
+Classification rule
+-------------------
+The removed scripts are temporary feature runners, probes, historical shape
+comparisons or measurement helpers. They do not own the regression fixtures:
+their referenced Mira and C inputs are tracked separately and remain in the
+tree. Before removal, v5.14.0 user-visible correctness coverage is consolidated
+into the two platform regress.sh entry points. Historical design and test
+reports may still mention old runner names; they remain immutable records.
+
+Release artifacts
+-----------------
+dist/mira-compiler-v5.14.0-source.zip
+dist/mira-compiler-v5.14.0-windows-x86_64.zip
+dist/SHA256SUMS.txt
+
+Release exclusions
+------------------
+.git/
+.superpowers/
+docs/superpowers/
+ignored build and benchmark outputs
+temporary verification directories
+all scripts in the removal set above
