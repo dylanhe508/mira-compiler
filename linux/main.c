@@ -761,7 +761,7 @@ static void compile_file_asm_dump(const char *path, const char *out_path) {
 
 /* 锟斤拷锟斤拷璩婏拷鎾滃啎瀵ユ憵锟姐棁锟斤拷皎叝锟界殱锟斤拷铦忕潈黏槝鎲掓€狆疯潕椐侊拷铦忔潯锟斤拷瀵★拷锟介槨鎼囩攬黏槳锟芥啰鐬撅拷鐟藉楫燂拷鎵瑰煄鎾夊ⅶ锟芥挓瑙佸欢锟借姡锟界瀳洵炬尓锟藉仸鈥垫啳闉夛拷锟芥黏棃锟界礁楫熸啞韪癸拷锟斤拷闅烉Б诧拷锟芥嫏锟斤拷锟界敘鎲＄儛鍋滆潳娼伯锟斤拷锟借潝璁愶拷闈橈拷锟斤拷楹拷锟斤拷锟界槥绁夛拷锟藉锟借澐锟界筏锟借锟斤拷鑱嗭拷锟斤拷鍓╋拷锟斤拷黏槳楝诧拷锟斤拷锟斤拷锟借潖鏇勶拷锟斤拷皈⒉鍑冿拷瀵ワ拷锟借矈锟斤拷锟借澊锟藉湌锟芥暪馉墰锟芥喛閸︷ぇ氳潪鑴ら疅鏁硅ǐ濡ｆ啋鑴ｏ拷锟藉吀鏃啳瑭ㄩ墑鐠婃铏燂拷鎯╋拷锟藉锟芥啋鑷笡閳姺锟斤拷鍙燂拷锟金ò濓拷锟戒帤锟斤拷鍒革拷锟斤拷锟介瘡? .mira 锟?.asm 锟?.obj 锟?.exe */
 
-static void full_build(const char *mira_path) {
+static void full_build(const char *mira_path, const char *requested_exe_path) {
 	int profile_enabled = getenv("MIRA_COMPILE_PROFILE") != NULL;
 	clock_t profile_begin = profile_enabled ? clock() : 0;
 	/* 锟?.mira 锟斤拷锟斤拷璩婏拷鎾滃啎瀵ユ憵锟斤拷闃￠础锟界﹥锟斤拷鍧旓拷锟界锟界槪纭嬭繂鍎尝锟界槡婢嗭拷锟戒豢黏剟锟芥嫏锟斤拷鎶嗭拷锟斤拷锟芥暥閸︼拷锟金肩珯锟借悇寤讹拷鑴╋拷锟金ぉ猴拷鎾樿硦锟斤拷纭猴拷锟藉锟介埈楫嬸ò圭攬黏槳妞懓锟芥埈绁夊鐠嗗垹锟界槪鍓濓箿鐢堭拷锟芥隘锟斤拷姊拷锟借喊锟芥喛鍓栵拷锟姐殮锟斤拷娼涳拷锟藉鍣㈣潪鐓撅拷锟芥江鍌︽啀钀勷虹懡璨婏拷锟斤脊瀹岋拷宄曪拷闅炶。锟界槡瑙侊拷鎲掓枃楹㈣澐鍘颁伯锟芥浮锟斤拷?basename */
@@ -783,6 +783,11 @@ static void full_build(const char *mira_path) {
 	snprintf(obj_path, sizeof(obj_path), "out/%s.o", basename);
 	snprintf(exe_path, sizeof(exe_path), "%s", basename);
 #endif
+	if (requested_exe_path) {
+		if (strlen(requested_exe_path) >= sizeof(exe_path))
+			mira_error_simple(1, "output path is too long");
+		strcpy(exe_path, requested_exe_path);
+	}
 
 	/* 铦伙拷锟斤拷璩婏拷锟斤拷锟斤拷黏徃馥亽锟斤拷榇★拷锟斤拷锟借垚锟芥挓纭嬭锟斤拷鎲掓疆楦橈拷榻擄拷鎾夊ⅶ稹祮锟芥喛鍦濓拷鐬堚垷锟借潩銟剧返锟芥壋锟斤拷绠忥拷铦滃槬锟斤拷瑷が鐦氾拷稹酣铦几锚?out/ 锟斤拷锟斤拷璩婏拷鎾滃啎瀵ユ憵锟姐棁锟斤拷皎叝锟斤拷锟芥喛闆磋澏锟姐瘎黏剟锟芥锟斤拷鍩濓拷锟金　炵絿鎾忥拷锟芥啀鑲呭暎锟姐瘎锟藉劗锟斤拷婕わ拷鎽お栵拷椁呴偅锟金伙拷锟斤拷锟芥喛瑷孩鎾樻锟?*/
 #ifdef _WIN32
@@ -1241,7 +1246,7 @@ do_link:;
 	if (ret != 0) {
 		mira_error_simple(1, "linking failed");
 	}
-	printf("Done. Run: %s\n", exe_path);
+	printf("Executable written to %s\n", exe_path);
 	if (profile_enabled)
 		fprintf(stderr, "build-profile compile=%.3f link=%.3f total=%.3f\n",
 		        mira_profile_ms(profile_begin, profile_compile),
@@ -1275,15 +1280,20 @@ static void print_version(void) {
 
 static void print_usage(void) {
 	printf("Mira Programming Language v%s\n\n", MIRA_VERSION);
-	printf("Usage:\n");
-	printf("  mira <file.mira>             Compile, assemble, link -> .exe\n");
-	printf("  mira -S <file.mira> [o.asm]  Compile to assembly only\n");
-	printf("  mira -l <a.obj> [b.obj] ...  Link .obj files -> .exe\n");
-	printf("  mira -n <name>               Create a new Mira project\n");
-	printf("  mira -O0|-O1|-O2|-O3         Set optimization level (default: -O2)\n");
-	printf("  mira -mavx2|-mno-avx2         Enable/disable AVX2 target (default: enabled)\n");
-	printf("  mira -v, --version           Show version information\n");
-	printf("  mira -h, --help              Show this help message\n");
+	printf("Usage: mira [options] <file.mira>\n\n");
+	printf("Output modes:\n");
+	printf("  -S, --emit=asm     Emit GNU Intel assembly\n");
+	printf("      --emit=ir      Emit Mira internal IR\n");
+	printf("  -c, --emit=obj     Emit an object file without linking\n");
+	printf("  -o <path>          Set output path\n\n");
+	printf("Optimization:\n");
+	printf("  -O0|-O1|-O2|-O3   Set optimization level (default: -O%d)\n\n", mira_opt_level);
+	printf("Other:\n");
+	printf("  -l <objects...>    Link object files\n");
+	printf("  -n <name>          Create a new Mira project\n");
+	printf("  -mavx2|-mno-avx2   Enable or disable AVX2\n");
+	printf("  -v, --version      Show version information\n");
+	printf("  -h, --help         Show this help message\n");
 }
 
 static bool apply_cli_target_options(const MiraCliOptions *options) {
@@ -1329,35 +1339,61 @@ int main(int argc, char **argv) {
 	if (!target_detect_native(&mira_target_features)) target_set_baseline(&mira_target_features);
 	mira_target_avx2 = mira_target_features.avx2 ? 1 : 0;
 
-	bool wants_explicit_text_emit = false;
-	for (int i = 1; i < argc; ++i)
-		if (strcmp(argv[i], "--emit=ir") == 0 ||
-		    strcmp(argv[i], "--emit=asm") == 0 || strcmp(argv[i], "-S") == 0)
-			wants_explicit_text_emit = true;
-	if (wants_explicit_text_emit) {
-		MiraCliOptions cli_options;
-		char cli_error[256];
-		if (!mira_cli_parse(argc, argv, &cli_options, cli_error, sizeof(cli_error))) {
-			fprintf(stderr, "error: %s\n", cli_error);
-			return 1;
+	MiraCliOptions cli_options;
+	char cli_error[256];
+	if (!mira_cli_parse(argc, argv, &cli_options, cli_error, sizeof(cli_error))) {
+		fprintf(stderr, "error: %s\n", cli_error);
+		return 1;
+	}
+	mira_opt_level = cli_options.opt_level;
+	if (!apply_cli_target_options(&cli_options)) return 1;
+	if (cli_options.command == MIRA_COMMAND_HELP) { print_usage(); return 0; }
+	if (cli_options.command == MIRA_COMMAND_VERSION) { print_version(); return 0; }
+	if (cli_options.command == MIRA_COMMAND_LINK) {
+		const char *output = cli_options.output;
+		if (!output) {
+#ifdef _WIN32
+			output = "a.exe";
+#else
+			output = "a.out";
+#endif
 		}
+		int result = linker_run(cli_options.link_inputs, cli_options.link_input_count, output);
+		if (result == 0) printf("Executable written to %s\n", output);
+		return result;
+	}
+	if (cli_options.command == MIRA_COMMAND_COMPILE) {
 		char default_output[512];
-		mira_opt_level = cli_options.opt_level;
-		if (!apply_cli_target_options(&cli_options)) return 1;
-		if (!cli_options.output) {
-			default_emit_output_path(cli_options.input,
-			        cli_options.emit == MIRA_EMIT_IR ? ".ir" : ".s",
-			        default_output, sizeof(default_output));
-			cli_options.output = default_output;
+		const char *output = cli_options.output;
+		switch (cli_options.emit) {
+		case MIRA_EMIT_IR:
+			if (!output) {
+				default_emit_output_path(cli_options.input, ".ir", default_output, sizeof(default_output));
+				output = default_output;
+			}
+			compile_file_ir_dump(cli_options.input, output);
+			printf("IR written to %s\n", output);
+			return 0;
+		case MIRA_EMIT_ASM:
+			if (!output) {
+				default_emit_output_path(cli_options.input, ".s", default_output, sizeof(default_output));
+				output = default_output;
+			}
+			compile_file_asm_dump(cli_options.input, output);
+			printf("Assembly written to %s\n", output);
+			return 0;
+		case MIRA_EMIT_OBJ:
+			if (!output) {
+				default_emit_output_path(cli_options.input, RT_OBJ_EXT, default_output, sizeof(default_output));
+				output = default_output;
+			}
+			compile_file_obj(cli_options.input, output);
+			printf("Object written to %s\n", output);
+			return 0;
+		case MIRA_EMIT_EXE:
+			full_build(cli_options.input, output);
+			return 0;
 		}
-		if (cli_options.emit == MIRA_EMIT_IR) {
-			compile_file_ir_dump(cli_options.input, cli_options.output);
-			printf("IR written to %s\n", cli_options.output);
-		} else {
-			compile_file_asm_dump(cli_options.input, cli_options.output);
-			printf("Assembly written to %s\n", cli_options.output);
-		}
-		return 0;
 	}
 
 	/* 浼樺厛鍏ㄥ眬瑙ｆ瀽 -O 浼樺寲绛夌骇鍙傛暟 */
@@ -1499,7 +1535,7 @@ int main(int argc, char **argv) {
 		}
 	}
 	/* mira <file.mira> */
-	full_build(argv[file_arg]);
+	full_build(argv[file_arg], NULL);
 	return 0;
 }
 

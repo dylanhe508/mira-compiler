@@ -463,7 +463,7 @@ git commit -m "feat(cli): emit GNU Intel assembly"
 - 消费：`MiraCliOptions` 与任务 2 的最终 `IrBuffer`
 - 产生：四种模式一致的默认文件名和 `-o` 行为。
 
-- [ ] **步骤 1：写默认名称、`-o` 与诊断 RED**
+- [x] **步骤 1：写默认名称、`-o` 与诊断 RED**
 
 脚本分别断言：
 
@@ -478,7 +478,7 @@ mira --emit=obj a.mira -o x.obj   -> x.obj
 
 同时逐字匹配缺少 `-o` 值、冲突 emit、多个输入和未知选项诊断。
 
-- [ ] **步骤 2：实现四种终点**
+- [x] **步骤 2：实现四种终点**
 
 主分派必须是单一 switch：
 
@@ -500,7 +500,7 @@ Object written to <path>
 Executable written to <path>
 ```
 
-- [ ] **步骤 3：重写帮助文本并更新 README**
+- [x] **步骤 3：重写帮助文本并更新 README**
 
 帮助按以下分组输出：
 
@@ -520,7 +520,7 @@ Optimization:
 默认值由 `mira_opt_level` 格式化。README 删除“默认 O3”，改成真实默认 O2，并
 新增四种输出示例及“普通编译不依赖外部 assembler”的说明。
 
-- [ ] **步骤 4：运行 focused GREEN**
+- [x] **步骤 4：运行 focused GREEN**
 
 `run_cli_emit_modes.ps1 -Group all` 必须覆盖 aliases、names、errors、pipeline、asm、
 obj、exe，最终输出：

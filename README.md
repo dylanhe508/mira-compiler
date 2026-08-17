@@ -11,7 +11,7 @@ runtime support is written in C (`runtime/`, built and linked together with the 
 
 ## Features
 
-- **Optimization levels O0–O3 with identical semantics** (O3 default; SSA passes: mem2reg,
+- **Optimization levels O0–O3 with identical semantics** (O2 default; SSA passes: mem2reg,
   dead code elimination, constant propagation, lea strength reduction, shadow space
   hoisting, affine folding, …)
 - **Two platforms from one source tree**: Windows (COFF/PE, Win64 ABI) and Linux
@@ -70,11 +70,24 @@ mira.exe hello.mira && hello.exe
 ./mira hello.mira && ./hello
 ```
 
-Optimization levels `-O0/-O1/-O2/-O3` are semantically identical; O3 is the default:
+Optimization levels `-O0/-O1/-O2/-O3` are semantically identical; O2 is the default:
 
 ```sh
 mira.exe -O0 hello.mira
 ```
+
+Output modes use one consistent `-o` option:
+
+```sh
+mira.exe hello.mira -o hello.exe        # executable (default mode)
+mira.exe -S hello.mira -o hello.s       # GNU Intel assembly
+mira.exe --emit=ir hello.mira -o hello.ir
+mira.exe -c hello.mira -o hello.obj     # object only, no linking
+```
+
+Normal executable compilation still uses Mira's direct x86-64 encoder and
+self-written linker; it does not invoke an external assembler or linker. The
+assembly mode is an optional interoperable output for inspection and external tools.
 
 A complete iterative example (fib(40) = 165580141):
 
@@ -154,7 +167,7 @@ The fuzz/bench sections of `fulltest.sh` depend on the `bench/` directory.
 
 ## 特性
 
-- **O0–O3 优化级别**：语义完全一致，默认 O3（含 SSA 优化：mem2reg、死代码消除、常量传播、强度削减 lea、shadow space hoisting、affine 折叠等）
+- **O0–O3 优化级别**：语义完全一致，默认 O2（含 SSA 优化：mem2reg、死代码消除、常量传播、强度削减 lea、shadow space hoisting、affine 折叠等）
 - **双平台**：Windows（COFF/PE, Win64 ABI）与 Linux（ELF, SysV ABI），同一份源码
 - **内置并发运行时**：worker 线程池、轻量任务、channel、select、join、fiber（协程）
 - **编译快、产物小**：1000 函数规模 ~0.3–1 秒；产物典型 ~8 KB（gcc 参考 368 KB）
@@ -207,11 +220,23 @@ mira.exe hello.mira && hello.exe
 ./mira hello.mira && ./hello
 ```
 
-优化级别 `-O0/-O1/-O2/-O3`，语义一致，默认 O3：
+优化级别 `-O0/-O1/-O2/-O3`，语义一致，默认 O2：
 
 ```sh
 mira.exe -O0 hello.mira
 ```
+
+所有输出模式统一使用 `-o` 指定文件名：
+
+```sh
+mira.exe hello.mira -o hello.exe        # 可执行文件（默认模式）
+mira.exe -S hello.mira -o hello.s       # GNU Intel 汇编
+mira.exe --emit=ir hello.mira -o hello.ir
+mira.exe -c hello.mira -o hello.obj     # 只生成目标文件，不链接
+```
+
+普通可执行文件编译仍使用 Mira 自己的 x86-64 直接编码器和自研链接器，不会调用
+外部 assembler/linker；汇编模式只是用于检查或接入外部工具的可选输出。
 
 一个完整的迭代示例（fib(40) = 165580141）：
 

@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('pipeline', 'ir-dump', 'asm', 'all')]
+    [ValidateSet('pipeline', 'ir-dump', 'asm', 'artifacts', 'all')]
     [string]$Group = 'all',
     [string]$Mira = ''
 )
@@ -84,6 +84,77 @@ try {
         & gcc -c $avxAsm -o $avxObj
         if ($LASTEXITCODE -ne 0) { throw 'GNU assembler rejected AVX2 assembly' }
         Write-Output 'GNU INTEL ASSEMBLY PASS'
+    }
+    if ($Group -in @('artifacts', 'all')) {
+        $compilerPath = (Resolve-Path -LiteralPath $Mira).Path
+        $compilerRoot = Split-Path -Parent $compilerPath
+        $isWindowsCompiler = [IO.Path]::GetExtension($compilerPath) -eq '.exe'
+        $exeSuffix = if ($isWindowsCompiler) { '.exe' } else { '' }
+        $objSuffix = if ($isWindowsCompiler) { '.obj' } else { '.o' }
+        Push-Location $outDir
+        try {
+            & $Mira $fixture -o "custom$exeSuffix" | Out-Host
+            if ($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath "custom$exeSuffix")) {
+                throw 'custom executable output failed'
+            }
+            if (((& ".\custom$exeSuffix") -join "`n").Trim() -ne '42') {
+                throw 'custom executable output mismatch'
+            }
+            & $Mira $fixture | Out-Host
+            if ($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath "final_ir_pipeline$exeSuffix")) {
+                throw 'default executable name failed'
+            }
+            & $Mira -c $fixture | Out-Host
+            if ($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath "final_ir_pipeline$objSuffix")) {
+                throw 'default object name failed'
+            }
+            & $Mira --emit=obj $fixture -o "standalone$objSuffix" | Out-Host
+            if ($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath "standalone$objSuffix")) {
+                throw 'custom object output failed'
+            }
+            if (Test-Path -LiteralPath "standalone$exeSuffix") {
+                throw 'object-only mode unexpectedly linked an executable'
+            }
+            $runtimeObjects = @("rt_core$objSuffix", "rt_print$objSuffix") |
+                ForEach-Object { Join-Path $compilerRoot "runtime\$_" }
+            & $Mira -l "standalone$objSuffix" $runtimeObjects -o "linked$exeSuffix" | Out-Host
+            if ($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath "linked$exeSuffix")) {
+                throw 'linking emitted object failed'
+            }
+            if (((& ".\linked$exeSuffix") -join "`n").Trim() -ne '42') {
+                throw 'linked object output mismatch'
+            }
+            & $Mira -S $fixture | Out-Host
+            if ($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath 'final_ir_pipeline.s')) {
+                throw 'default assembly name failed'
+            }
+            & $Mira --emit=ir $fixture | Out-Host
+            if ($LASTEXITCODE -ne 0 -or !(Test-Path -LiteralPath 'final_ir_pipeline.ir')) {
+                throw 'default IR name failed'
+            }
+        } finally {
+            Pop-Location
+        }
+        $errorCases = @(
+            @{ Args = @('-o'); Text = "option '-o' requires a value" },
+            @{ Args = @('-S', '-c', $fixture); Text = 'conflicting emit modes' },
+            @{ Args = @($fixture, $asmFixture); Text = 'multiple input files' },
+            @{ Args = @('--unknown', $fixture); Text = "unknown option '--unknown'" }
+        )
+        foreach ($case in $errorCases) {
+            $savedPreference = $ErrorActionPreference
+            $ErrorActionPreference = 'Continue'
+            try { $diagnostic = (& $Mira @($case.Args) 2>&1 | Out-String) }
+            finally { $ErrorActionPreference = $savedPreference }
+            if ($LASTEXITCODE -eq 0 -or $diagnostic -notmatch [regex]::Escape($case.Text)) {
+                throw "diagnostic mismatch for $($case.Args -join ' '): $diagnostic"
+            }
+        }
+        $help = (& $Mira --help | Out-String)
+        foreach ($text in @('--emit=asm', '--emit=ir', '--emit=obj', '-o <path>', 'default: -O2')) {
+            if ($help -notmatch [regex]::Escape($text)) { throw "help missing: $text" }
+        }
+        Write-Output 'CLI ARTIFACT OUTPUTS PASS'
     }
     if ($Group -eq 'all') { Write-Output 'CLI EMIT MODES PASS' }
 } finally {
