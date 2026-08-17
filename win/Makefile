@@ -5,7 +5,7 @@ CFLAGS = -O2 -I.
 RUNTIME_CFLAGS = -O2 -I. -D__USE_MINGW_ANSI_STDIO=0 -D_WIN32_WINNT=0x0600 -mno-stack-arg-probe
 
 COMPILER_SRCS = \
-	main.c lexer.c parser.c typecheck.c codegen.c hash.c memory.c error.c \
+	main.c cli.c lexer.c parser.c typecheck.c codegen.c hash.c memory.c error.c \
 	codegen/decision.c codegen/stdlib_builtins.c codegen/ir.c codegen/ir_opt.c codegen/ir_cfg_cleanup.c \
 	codegen/ir_dump.c codegen/encoder.c codegen/coff_writer.c codegen/elf_writer.c \
 	codegen/abi_win64.c codegen/ssa_builder.c codegen/ssa_function_index.c \

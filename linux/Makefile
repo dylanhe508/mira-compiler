@@ -20,7 +20,7 @@ LDFLAGS = -no-pie -lpthread -lm
 # === 编译器源文件(平台无关核心 + SysV ABI 后端 + ELF 链接器)===
 # 不含:abi_win64.c, coff_writer.c, linker/coff.c, linker/dll_map.c, linker/pe.c
 COMPILER_SRCS = \
-	main.c lexer.c parser.c typecheck.c codegen.c hash.c memory.c error.c \
+	main.c cli.c lexer.c parser.c typecheck.c codegen.c hash.c memory.c error.c \
 	codegen/decision.c codegen/stdlib_builtins.c codegen/ir.c codegen/ir_opt.c \
 	codegen/ir_cfg_cleanup.c codegen/ir_dump.c \
 	codegen/encoder.c codegen/elf_writer.c codegen/abi_sysv.c \
