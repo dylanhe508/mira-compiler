@@ -249,8 +249,10 @@ fclose(out);
 
 - [ ] **步骤 4：验证共享流水线 GREEN 与普通编译哈希不变**
 
-先在改动前记录 `regression_phi_inline.mira` O0/O3 的 OBJ、EXE SHA-256；改动后
-重新 clean build 并比较。预期程序输出一致，且无预期 codegen 变化时哈希相同。
+先在改动前记录 `regression_phi_inline.mira` O0/O3 的 EXE SHA-256 与 OBJ 的节
+内容；改动后重新 clean build 并比较。EXE 哈希必须相同。COFF OBJ 的文件头
+偏移 4–7 是现有写出器设置的 `TimeDateStamp`，应将该字段归零后比较，或直接
+比较代码、数据和重定位节，不能用未经归一化的原始文件哈希制造假失败。
 
 运行 `run_cli_emit_modes.ps1 -Group pipeline`，预期：
 
@@ -571,7 +573,8 @@ golden 输出必须不变。
 
 - O0–O3 的 `.s` 都能被宿主 assembler 接受；
 - `-c` 目标文件能被现有 linker 模式消费；
-- 普通代表程序的运行输出、大小和 SHA 与任务 2 记录一致；
+- 普通代表程序的运行输出、大小和 EXE SHA 与任务 2 记录一致；COFF OBJ 按任务 2
+  的时间戳归一化规则比较；
 - 未跟踪或已跟踪目录中没有遗留 `.exe/.obj/.o/.s/.ir` 测试产物。
 
 - [ ] **步骤 4：核对 Windows/Linux 镜像**

@@ -4,6 +4,7 @@
 #include "codegen/abi.h"
 #include "linker/linker.h"
 #include "codegen/target.h"
+#include "cli.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -584,61 +585,7 @@ void parser_do_import(const char *path, const char *alias, int is_lib) {
 	free(resolved);
 }
 
-/* parser_do_import_ext 澶勭悊 `import-ext "file.json"` 璇箟 */
-/* compile_file: 锟芥箶穰粬闇傞锟?.mira鍤椾敹锟斤拷婊╃播 expand_imports 锟斤拷皈嫤锟芥江穰粬锟?*/
-void compile_file_obj(const char *path, const char *obj_path) {
-	int profile_enabled = getenv("MIRA_COMPILE_PROFILE") != NULL;
-	clock_t profile_begin = profile_enabled ? clock() : 0;
-	imported_count = 0;
-	for (int i = 0; i < IMPORT_MAX; i++) imported[i] = NULL;
-
-	/* === 鍔拷?DLL 鎵╁睍锛氭壂锟?dll-map/ 鏂囦欢锟?=== */
-	{
-		/* 璁＄畻婧愭枃浠舵墍鍦ㄧ洰锟?*/
-		char src_dir[512] = {0};
-		const char *lIR_sep = strrchr(path, '\\');
-		if (!lIR_sep) lIR_sep = strrchr(path, '/');
-		if (lIR_sep) {
-			int len = (int)(lIR_sep - path);
-			if (len >= (int)sizeof(src_dir)) len = (int)sizeof(src_dir) - 1;
-			memcpy(src_dir, path, len);
-			src_dir[len] = '\0';
-		} else {
-			src_dir[0] = '.'; src_dir[1] = '\0';
-		}
-	}
-	clock_t profile_scan = profile_enabled ? clock() : 0;
-
-	/* Read source file into memory for parser */
-	FILE *f = fopen(path, "rb");
-	if (!f) mira_error_simple(1, "cannot open '%s'", path);
-	fseek(f, 0, SEEK_END);
-	long fsz = ftell(f);
-	fseek(f, 0, SEEK_SET);
-	char *src = (char *)malloc((size_t)fsz + 1);
-	fread(src, 1, (size_t)fsz, f);
-	src[fsz] = '\0';
-	fclose(f);
-	clock_t profile_read = profile_enabled ? clock() : 0;
-
-	push_imported(strdup(path));
-
-	Compiler c = {0};
-	c.src = src;
-	c.out_path = obj_path;
-	c.out = NULL;
-	c.filename = path;
-	g_current_compiler = &c;
-
-
-	Program *prog = parser_parse(&c);
-	clock_t profile_parse = profile_enabled ? clock() : 0;
-	mira_typecheck_program(&c, prog);
-	codegen(&c, prog);
-	clock_t profile_codegen = profile_enabled ? clock() : 0;
-
-	/* IR optimization passes */
-	IrBuffer *ir = &cg->ir;
+static void finalize_machine_ir(IrBuffer *ir) {
 	if (mira_opt_level >= 2) {
 		ir_opt_constant_fold(ir);
 		ir_opt_strength_reduce(ir);
@@ -646,10 +593,100 @@ void compile_file_obj(const char *path, const char *obj_path) {
 		ir_opt_redundant_load(ir);
 		ir_opt_peephole(ir);
 	}
-	if (mira_opt_level >= 3) {
+	if (mira_opt_level >= 3)
 		ir_opt_ilp_schedule(ir);
+}
+
+typedef struct {
+	IrBuffer *ir;
+	char *source;
+	Compiler compiler;
+	int profile_enabled;
+	clock_t profile_begin;
+	clock_t profile_scan;
+	clock_t profile_read;
+	clock_t profile_parse;
+	clock_t profile_codegen;
+	clock_t profile_ir_opt;
+} MiraCompileUnit;
+
+static void compile_unit_dispose(MiraCompileUnit *unit) {
+	if (!unit) return;
+	free(unit->source);
+	unit->source = NULL;
+	unit->ir = NULL;
+	if (g_current_compiler == &unit->compiler) g_current_compiler = NULL;
+	for (int i = 0; i < imported_count; i++) free((void *)imported[i]);
+	imported_count = 0;
+}
+
+static bool compile_file_to_final_ir(const char *path, const char *out_path,
+		MiraCompileUnit *out) {
+	memset(out, 0, sizeof(*out));
+	out->profile_enabled = getenv("MIRA_COMPILE_PROFILE") != NULL;
+	out->profile_begin = out->profile_enabled ? clock() : 0;
+	imported_count = 0;
+	for (int i = 0; i < IMPORT_MAX; i++) imported[i] = NULL;
+
+	/* Preserve the import/DLL scan boundary used by compile profiling. */
+	{
+		char src_dir[512] = {0};
+		const char *last_sep = strrchr(path, '\\');
+		if (!last_sep) last_sep = strrchr(path, '/');
+		if (last_sep) {
+			int len = (int)(last_sep - path);
+			if (len >= (int)sizeof(src_dir)) len = (int)sizeof(src_dir) - 1;
+			memcpy(src_dir, path, (size_t)len);
+			src_dir[len] = '\0';
+		} else {
+			src_dir[0] = '.';
+			src_dir[1] = '\0';
+		}
 	}
-	clock_t profile_ir_opt = profile_enabled ? clock() : 0;
+	out->profile_scan = out->profile_enabled ? clock() : 0;
+
+	FILE *f = fopen(path, "rb");
+	if (!f) mira_error_simple(1, "cannot open '%s'", path);
+	fseek(f, 0, SEEK_END);
+	long file_size = ftell(f);
+	fseek(f, 0, SEEK_SET);
+	out->source = malloc((size_t)file_size + 1);
+	if (!out->source) {
+		fclose(f);
+		mira_error_simple(1, "out of memory reading '%s'", path);
+	}
+	if (fread(out->source, 1, (size_t)file_size, f) != (size_t)file_size) {
+		fclose(f);
+		mira_error_simple(1, "cannot read '%s'", path);
+	}
+	out->source[file_size] = '\0';
+	fclose(f);
+	out->profile_read = out->profile_enabled ? clock() : 0;
+
+	push_imported(strdup(path));
+	out->compiler.src = out->source;
+	out->compiler.out_path = out_path;
+	out->compiler.out = NULL;
+	out->compiler.filename = path;
+	g_current_compiler = &out->compiler;
+
+	Program *program = parser_parse(&out->compiler);
+	out->profile_parse = out->profile_enabled ? clock() : 0;
+	mira_typecheck_program(&out->compiler, program);
+	codegen(&out->compiler, program);
+	out->profile_codegen = out->profile_enabled ? clock() : 0;
+	out->ir = &cg->ir;
+	finalize_machine_ir(out->ir);
+	out->profile_ir_opt = out->profile_enabled ? clock() : 0;
+	return true;
+}
+
+/* parser_do_import_ext 澶勭悊 `import-ext "file.json"` 璇箟 */
+/* compile_file: 锟芥箶穰粬闇傞锟?.mira鍤椾敹锟斤拷婊╃播 expand_imports 锟斤拷皈嫤锟芥江穰粬锟?*/
+void compile_file_obj(const char *path, const char *obj_path) {
+	MiraCompileUnit unit;
+	compile_file_to_final_ir(path, obj_path, &unit);
+	IrBuffer *ir = unit.ir;
 
 	/* Encode IR to machine code */
 	EncodeResult enc = {0};
@@ -657,7 +694,7 @@ void compile_file_obj(const char *path, const char *obj_path) {
 	if (ret != 0) {
 		mira_error_simple(1, "IR encoding failed for '%s'", path);
 	}
-	clock_t profile_encode = profile_enabled ? clock() : 0;
+	clock_t profile_encode = unit.profile_enabled ? clock() : 0;
 
 	/* Write object file:COFF(Win64)或 ELF(SysV)。
 	 * 编译期宏分支:链接器后端始终匹配宿主平台,
@@ -670,63 +707,35 @@ void compile_file_obj(const char *path, const char *obj_path) {
 	if (ret != 0) {
 		mira_error_simple(1, "failed to write object file '%s'", obj_path);
 	}
-	clock_t profile_obj = profile_enabled ? clock() : 0;
-	if (profile_enabled)
+	clock_t profile_obj = unit.profile_enabled ? clock() : 0;
+	if (unit.profile_enabled)
 		fprintf(stderr,
 		        "compile-profile scan=%.3f read=%.3f parse=%.3f "
 		        "codegen=%.3f ir-opt=%.3f encode=%.3f obj=%.3f total=%.3f\n",
-		        mira_profile_ms(profile_begin, profile_scan),
-		        mira_profile_ms(profile_scan, profile_read),
-		        mira_profile_ms(profile_read, profile_parse),
-		        mira_profile_ms(profile_parse, profile_codegen),
-		        mira_profile_ms(profile_codegen, profile_ir_opt),
-		        mira_profile_ms(profile_ir_opt, profile_encode),
+		        mira_profile_ms(unit.profile_begin, unit.profile_scan),
+		        mira_profile_ms(unit.profile_scan, unit.profile_read),
+		        mira_profile_ms(unit.profile_read, unit.profile_parse),
+		        mira_profile_ms(unit.profile_parse, unit.profile_codegen),
+		        mira_profile_ms(unit.profile_codegen, unit.profile_ir_opt),
+		        mira_profile_ms(unit.profile_ir_opt, profile_encode),
 		        mira_profile_ms(profile_encode, profile_obj),
-		        mira_profile_ms(profile_begin, profile_obj));
+		        mira_profile_ms(unit.profile_begin, profile_obj));
 
 	encode_result_free(&enc);
-	free(src);
-	for (int i = 0; i < imported_count; i++) free((void *)imported[i]);
+	compile_unit_dispose(&unit);
 }
 
 /* compile_file_ir_dump: compile .mira and dump IR text (for -S flag) */
 void compile_file_ir_dump(const char *path, const char *out_path) {
-	imported_count = 0;
-	for (int i = 0; i < IMPORT_MAX; i++) imported[i] = NULL;
-
-	FILE *f = fopen(path, "rb");
-	if (!f) mira_error_simple(1, "cannot open '%s'", path);
-	fseek(f, 0, SEEK_END);
-	long fsz = ftell(f);
-	fseek(f, 0, SEEK_SET);
-	char *src = malloc((size_t)fsz + 1);
-	fread(src, 1, (size_t)fsz, f);
-	src[fsz] = '\0';
-	fclose(f);
-
-	push_imported(strdup(path));
-
-	Compiler c = {0};
-	c.src = src;
-	c.out_path = out_path;
-	c.out = NULL;
-	c.filename = path;
-	g_current_compiler = &c;
-
-
-	Program *prog = parser_parse(&c);
-	mira_typecheck_program(&c, prog);
-	codegen(&c, prog);
-
-	IrBuffer *ir = &cg->ir;
+	MiraCompileUnit unit;
+	compile_file_to_final_ir(path, out_path, &unit);
 	FILE *out = fopen(out_path, "w");
 	if (!out) {
 		mira_error_simple(1, "cannot write '%s'", out_path);
 	}
-	ir_dump(ir, out);
+	ir_dump(unit.ir, out);
 	fclose(out);
-	
-	for (int i = 0; i < imported_count; i++) free((void *)imported[i]);
+	compile_unit_dispose(&unit);
 }
 
 /* 锟斤拷锟斤拷璩婏拷鎾滃啎瀵ユ憵锟姐棁锟斤拷皎叝锟界殱锟斤拷铦忕潈黏槝鎲掓€狆疯潕椐侊拷铦忔潯锟斤拷瀵★拷锟介槨鎼囩攬黏槳锟芥啰鐬撅拷鐟藉楫燂拷鎵瑰煄鎾夊ⅶ锟芥挓瑙佸欢锟借姡锟界瀳洵炬尓锟藉仸鈥垫啳闉夛拷锟芥黏棃锟界礁楫熸啞韪癸拷锟斤拷闅烉Б诧拷锟芥嫏锟斤拷锟界敘鎲＄儛鍋滆潳娼伯锟斤拷锟借潝璁愶拷闈橈拷锟斤拷楹拷锟斤拷锟界槥绁夛拷锟藉锟借澐锟界筏锟借锟斤拷鑱嗭拷锟斤拷鍓╋拷锟斤拷黏槳楝诧拷锟斤拷锟斤拷锟借潖鏇勶拷锟斤拷皈⒉鍑冿拷瀵ワ拷锟借矈锟斤拷锟借澊锟藉湌锟芥暪馉墰锟芥喛閸︷ぇ氳潪鑴ら疅鏁硅ǐ濡ｆ啋鑴ｏ拷锟藉吀鏃啳瑭ㄩ墑鐠婃铏燂拷鎯╋拷锟藉锟芥啋鑷笡閳姺锟斤拷鍙燂拷锟金ò濓拷锟戒帤锟斤拷鍒革拷锟斤拷锟介瘡? .mira 锟?.asm 锟?.obj 锟?.exe */
@@ -1256,12 +1265,69 @@ static void print_usage(void) {
 	printf("  mira -h, --help              Show this help message\n");
 }
 
+static bool apply_cli_target_options(const MiraCliOptions *options) {
+	if (options->march && !target_apply_march(&mira_target_features, options->march)) {
+		fprintf(stderr, "error: unknown target '%s'\n", options->march);
+		return false;
+	}
+	if (options->avx2_override == 1) {
+		mira_target_features.avx = true;
+		mira_target_features.avx2 = true;
+	} else if (options->avx2_override == 0) {
+		mira_target_features.avx2 = false;
+	}
+	if (options->target) {
+		if (strcmp(options->target, "linux") == 0 || strcmp(options->target, "sysv") == 0)
+			mira_target_abi = MIRA_ABI_SYSV;
+		else if (strcmp(options->target, "windows") == 0 || strcmp(options->target, "win64") == 0)
+			mira_target_abi = MIRA_ABI_WIN64;
+		else {
+			fprintf(stderr, "error: unknown target '%s'\n", options->target);
+			return false;
+		}
+	}
+	mira_target_avx2 = mira_target_features.avx2 ? 1 : 0;
+	return true;
+}
+
+static void default_ir_output_path(const char *input, char *output, size_t output_size) {
+	const char *base = strrchr(input, '\\');
+	if (!base) base = strrchr(input, '/');
+	base = base ? base + 1 : input;
+	snprintf(output, output_size, "%s", base);
+	char *dot = strrchr(output, '.');
+	if (dot) *dot = '\0';
+	strncat(output, ".ir", output_size - strlen(output) - 1);
+}
+
 /* 鎲嶈悋馉綄锟借雹鑰拷璩㈡啢锟芥綌铻傝潳椁咃拷锟藉潝鍗斤拷鍗濓拷锟介枡锟斤拷绁嗭拷锟借雹楝茶潿稷爟锟斤拷搴忦　烇拷锟界绺戯拷鎷嶇肪锟借€曪拷瀹嬶拷绠忥拷锟姐殮绶ょ攬妯筹拷锟芥妴锟芥拸钀樺啫閵碘姤黏獤鐠婃枟锟界拤锟斤拷锟斤几妞拷鋫块槷鎲撹劑锟借彍韪庢喅妗吤拷缇擄拷鎲℃Ы锟斤拷鎽帮拷锟界爞锟?REPL 鐬堝垹悌炴啰鐞匡拷锟金滐拷锟界﹥锟斤拷鐮嶏拷锟金滃櫒锟借疇锟芥懓皎盎锟芥挊鍦掔笣鐬堬拷锟斤拷涑★拷锟斤拷楹潪鍦堥笜鐠嗭拷鐠夊棯绶わ拷绠忔櫠鎲块灍锟借潽椐侊拷锟藉敵閴勬啋鎬ワ拷铦虫激锟斤拷铦ゆ疆榇★拷鍫掞拷锟界兙锟斤拷皙榿鐓撅拷锟借尝浒荤瀴鍡嗭拷锟藉嚱锟芥埈鍓滐拷锟?*/
 
 int main(int argc, char **argv) {
 	init_libs_dir(argv[0]);
 	if (!target_detect_native(&mira_target_features)) target_set_baseline(&mira_target_features);
 	mira_target_avx2 = mira_target_features.avx2 ? 1 : 0;
+
+	bool wants_ir = false;
+	for (int i = 1; i < argc; ++i)
+		if (strcmp(argv[i], "--emit=ir") == 0) wants_ir = true;
+	if (wants_ir) {
+		MiraCliOptions cli_options;
+		char cli_error[256];
+		if (!mira_cli_parse(argc, argv, &cli_options, cli_error, sizeof(cli_error))) {
+			fprintf(stderr, "error: %s\n", cli_error);
+			return 1;
+		}
+		char default_output[512];
+		mira_opt_level = cli_options.opt_level;
+		if (!apply_cli_target_options(&cli_options)) return 1;
+		if (!cli_options.output) {
+			default_ir_output_path(cli_options.input, default_output, sizeof(default_output));
+			cli_options.output = default_output;
+		}
+		compile_file_ir_dump(cli_options.input, cli_options.output);
+		printf("IR written to %s\n", cli_options.output);
+		return 0;
+	}
 
 	/* 浼樺厛鍏ㄥ眬瑙ｆ瀽 -O 浼樺寲绛夌骇鍙傛暟 */
 	for (int i = 1; i < argc; i++) {
