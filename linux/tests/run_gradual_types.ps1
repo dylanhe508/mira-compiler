@@ -342,7 +342,7 @@ if ($Group -in @('all', 'ssa')) {
         }
 
         $irPath = Join-Path $types 'ssa_typed_values.O0.ir'
-        & $Mira -S 'ssa_typed_values.mira' $irPath -O0 | Out-Host
+        & $Mira --emit=ir 'ssa_typed_values.mira' -o $irPath -O0 | Out-Host
         if ($LASTEXITCODE -ne 0) { throw 'ssa_typed_values O0 IR dump failed' }
         $ir = Get-Content -Raw -LiteralPath $irPath
 

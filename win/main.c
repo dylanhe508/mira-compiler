@@ -733,7 +733,11 @@ void compile_file_ir_dump(const char *path, const char *out_path) {
 	if (!out) {
 		mira_error_simple(1, "cannot write '%s'", out_path);
 	}
-	ir_dump(unit.ir, out);
+	IrOpcode unsupported = 0;
+	if (!ir_dump(unit.ir, out, &unsupported)) {
+		fclose(out);
+		mira_error_simple(1, "cannot emit IR opcode %d", (int)unsupported);
+	}
 	fclose(out);
 	compile_unit_dispose(&unit);
 }

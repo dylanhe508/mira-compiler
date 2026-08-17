@@ -17,7 +17,7 @@ try {
     $irPath = Join-Path $types 'shift_immediate_codegen.ir'
     & $Mira -O3 'shift_immediate_codegen.mira' | Out-Host
     if ($LASTEXITCODE -ne 0) { throw 'shift immediate executable compile failed' }
-    & $Mira -S 'shift_immediate_codegen.mira' $irPath -O3 | Out-Host
+    & $Mira --emit=ir 'shift_immediate_codegen.mira' -o $irPath -O3 | Out-Host
     if ($LASTEXITCODE -ne 0) { throw 'shift immediate compile failed' }
     $program = Join-Path $types "shift_immediate_codegen$suffix"
     $actual = ((& $program) -join "`n").Trim()
@@ -44,7 +44,7 @@ try {
     $affineIrPath = Join-Path $types 'nested_affine_codegen.ir'
     & $Mira -O3 'nested_affine_codegen.mira' | Out-Host
     if ($LASTEXITCODE -ne 0) { throw 'nested affine executable compile failed' }
-    & $Mira -S 'nested_affine_codegen.mira' $affineIrPath -O3 | Out-Host
+    & $Mira --emit=ir 'nested_affine_codegen.mira' -o $affineIrPath -O3 | Out-Host
     if ($LASTEXITCODE -ne 0) { throw 'nested affine assembly compile failed' }
     $affineActual = ((& (Join-Path $types 'nested_affine_codegen')) -join "`n").Trim()
     if ($LASTEXITCODE -ne 0) { throw 'nested affine run failed' }

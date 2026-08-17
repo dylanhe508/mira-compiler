@@ -283,7 +283,7 @@ git commit -m "refactor(cli): share finalized machine IR"
 - 产生：`bool ir_dump(const IrBuffer *ir, FILE *out, IrOpcode *unsupported)`
 - 消费：`--emit=ir` 终点。
 
-- [ ] **步骤 1：写未知 opcode RED 与迁移测试**
+- [x] **步骤 1：写未知 opcode RED 与迁移测试**
 
 新增 C 测试构造：
 
@@ -300,7 +300,7 @@ assert(unsupported == IR_OPCODE_COUNT);
 
 现有 `ir_dump()` 会输出注释并成功，预期测试 RED。
 
-- [ ] **步骤 2：让 IR dump 明确失败**
+- [x] **步骤 2：让 IR dump 明确失败**
 
 将默认分支从：
 
@@ -311,7 +311,7 @@ fprintf(out, "  ; unknown opcode %d\n", inst->IrNode);
 改为设置 `*unsupported` 并返回 `false`。文本、data、bss 三段统一传播失败；文件
 打开和关闭仍由调用方负责。
 
-- [ ] **步骤 3：迁移所有内部 IR 调用**
+- [x] **步骤 3：迁移所有内部 IR 调用**
 
 把：
 
@@ -328,7 +328,7 @@ fprintf(out, "  ; unknown opcode %d\n", inst->IrNode);
 `run_removed_cli_features.ps1` 不再把 `-S` 当“被保留的旧 IR”；它改为断言
 `--emit=ir` 文件以 `;; Mira IR dump` 开头。
 
-- [ ] **步骤 4：运行所有 IR 形状测试**
+- [x] **步骤 4：运行所有 IR 形状测试**
 
 至少运行 hot-loop、gradual SSA、removed-cli、affine、divrem、cross-branch 系列。
 预期所有脚本 PASS，且 `rg` 不再找到把 `-S` 输出当 IR 解析的活跃测试。

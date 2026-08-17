@@ -22,10 +22,11 @@ static const char *rn(IrReg r) {
 	return "???";
 }
 
-static void dump_text(IrInst *insts, int count, FILE *out) {
+static bool dump_text(const IrInst *insts, int count, FILE *out,
+		IrOpcode *unsupported) {
 	fprintf(out, "\n; === .text ===\n");
 	for (int i = 0; i < count; i++) {
-		IrInst *inst = &insts[i];
+		const IrInst *inst = &insts[i];
 		switch (inst->IrNode) {
 		case IR_MOV_REG_REG:    fprintf(out, "  mov %s, %s\n", rn(inst->dst), rn(inst->src)); break;
 		case IR_MOV_REG_IMM:    fprintf(out, "  mov %s, %lld\n", rn(inst->dst), (long long)inst->imm); break;
@@ -72,6 +73,7 @@ static void dump_text(IrInst *insts, int count, FILE *out) {
 		case IR_SUB_REG_IMM: fprintf(out, "  sub %s, %lld\n", rn(inst->dst), (long long)inst->imm); break;
 		case IR_IMUL_REG_REG: fprintf(out, "  imul %s, %s\n", rn(inst->dst), rn(inst->src)); break;
 		case IR_IMUL_REG_IMM: fprintf(out, "  imul %s, %s, %lld\n", rn(inst->dst), rn(inst->src), (long long)inst->imm); break;
+		case IR_IMUL_WIDE_REG: fprintf(out, "  imul %s\n", rn(inst->src)); break;
 		case IR_MUL_WIDE_REG: fprintf(out, "  mul %s\n", rn(inst->src)); break;
 		case IR_ALIGN32: fprintf(out, "  align 32\n"); break;
 		case IR_IDIV_REG:    fprintf(out, "  idiv %s\n", rn(inst->src)); break;
@@ -89,6 +91,7 @@ static void dump_text(IrInst *insts, int count, FILE *out) {
 		case IR_OR_REG_REG:  fprintf(out, "  or %s, %s\n", rn(inst->dst), rn(inst->src)); break;
 		case IR_SHL_REG_IMM: fprintf(out, "  shl %s, %lld\n", rn(inst->dst), (long long)inst->imm); break;
 		case IR_SHR_REG_IMM: fprintf(out, "  shr %s, %lld\n", rn(inst->dst), (long long)inst->imm); break;
+		case IR_SAR_REG_IMM: fprintf(out, "  sar %s, %lld\n", rn(inst->dst), (long long)inst->imm); break;
 		case IR_SHL_REG_CL: fprintf(out, "  shl %s, cl\n", rn(inst->dst)); break;
 		case IR_SHR_REG_CL: fprintf(out, "  shr %s, cl\n", rn(inst->dst)); break;
 		case IR_SAR_REG_CL: fprintf(out, "  sar %s, cl\n", rn(inst->dst)); break;
@@ -154,6 +157,7 @@ static void dump_text(IrInst *insts, int count, FILE *out) {
 		case IR_MULSD:  fprintf(out, "  mulsd %s, %s\n", rn(inst->dst), rn(inst->src)); break;
 		case IR_DIVSD:  fprintf(out, "  divsd %s, %s\n", rn(inst->dst), rn(inst->src)); break;
 		case IR_UCOMISD: fprintf(out, "  ucomisd %s, %s\n", rn(inst->dst), rn(inst->src)); break;
+		case IR_VFMADD132SD: fprintf(out, "  vfmadd132sd %s, %s, %s\n", rn(inst->dst), rn(inst->src), rn(inst->src2)); break;
 		case IR_VPADDQ: fprintf(out, "  vpaddq %s, %s, %s\n", rn(inst->dst), rn(inst->src), rn(inst->src2)); break;
 		case IR_VPSADBW: fprintf(out, "  vpsadbw %s, %s, %s\n", rn(inst->dst), rn(inst->src), rn(inst->src2)); break;
 		case IR_VPSUBQ: fprintf(out, "  vpsubq %s, %s, %s\n", rn(inst->dst), rn(inst->src), rn(inst->src2)); break;
@@ -169,13 +173,14 @@ static void dump_text(IrInst *insts, int count, FILE *out) {
 		case IR_VMOVDQU_STORE: fprintf(out, "  vmovdqu [%s + %lld], %s\n", rn(inst->dst), (long long)inst->imm, rn(inst->src)); break;
 		case IR_VZEROUPPER: fprintf(out, "  vzeroupper\n"); break;
 		default:
-			fprintf(out, "  ; unknown opcode %d\n", inst->IrNode);
-			break;
+			if (unsupported) *unsupported = inst->IrNode;
+			return false;
 		}
 	}
+	return true;
 }
 
-void ir_dump(IrBuffer *ir, FILE *out) {
+bool ir_dump(const IrBuffer *ir, FILE *out, IrOpcode *unsupported) {
 	fprintf(out, ";; Mira IR dump\n");
 
 	/* externs */
@@ -191,7 +196,7 @@ void ir_dump(IrBuffer *ir, FILE *out) {
 		fprintf(out, "\n; === .data ===\n");
 		fprintf(out, "section .data\n");
 		for (int i = 0; i < ir->data_count; i++) {
-			IrInst *inst = &ir->data[i];
+			const IrInst *inst = &ir->data[i];
 			switch (inst->IrNode) {
 			case IR_DATA_LABEL:
 				fprintf(out, "%s:\n", inst->sym_name);
@@ -215,7 +220,8 @@ void ir_dump(IrBuffer *ir, FILE *out) {
 				fprintf(out, "  dq %s\n", inst->sym_name);
 				break;
 			default:
-				break;
+				if (unsupported) *unsupported = inst->IrNode;
+				return false;
 			}
 		}
 	}
@@ -225,16 +231,20 @@ void ir_dump(IrBuffer *ir, FILE *out) {
 		fprintf(out, "\n; === .bss ===\n");
 		fprintf(out, "section .bss\n");
 		for (int i = 0; i < ir->bss_count; i++) {
-			IrInst *inst = &ir->bss[i];
+			const IrInst *inst = &ir->bss[i];
 			if (inst->IrNode == IR_BSS_LABEL)
 				fprintf(out, "%s:\n", inst->sym_name);
 			else if (inst->IrNode == IR_BSS_RESQ)
 				fprintf(out, "  resq %lld\n", (long long)inst->imm);
+			else {
+				if (unsupported) *unsupported = inst->IrNode;
+				return false;
+			}
 		}
 	}
 
 	/* .text */
 	fprintf(out, "\nsection .text\n");
-	dump_text(ir->text, ir->text_count, out);
+	return dump_text(ir->text, ir->text_count, out, unsupported);
 }
 

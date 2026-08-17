@@ -402,7 +402,7 @@ int elf_write_obj(EncodeResult *enc, IrBuffer *ir, const char *path);
 int elf_write_mem(EncodeResult *enc, IrBuffer *ir, uint8_t **out_buf, int *out_len);
 
 /* IR dump */
-void ir_dump(IrBuffer *ir, FILE *out);
+bool ir_dump(const IrBuffer *ir, FILE *out, IrOpcode *unsupported);
 
 /* ?? passes */
 void ir_opt_constant_fold(IrBuffer *ir);
