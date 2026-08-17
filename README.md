@@ -127,16 +127,17 @@ fn main() {
 ## Testing
 
 ```sh
-# per-tree regression
-bash win/regress.sh      # Windows
-bash linux/regress.sh    # Linux
+# formal release regression (CLI, types, modules, stdlib and O0-O3 goldens)
+bash win/regress.sh              # Windows (Git Bash)
+bash linux/regress.sh            # Linux
 
-# full test suite (400 checks: tests 55×4 + fuzz 40×4 + bench 5×4,
-# checksums verified against gcc references)
-bash win/fulltest.sh
+# optional benchmark checksum comparison against gcc
+bash bench/bench_regress.sh win/mira.exe
 ```
 
-The fuzz/bench sections of `fulltest.sh` depend on the `bench/` directory.
+The release regression entry points share `regress-common.sh`. Regression
+fixtures remain under each platform's `tests/` tree; one-off feature runners
+and investigation probes are intentionally not shipped.
 
 ## Version
 
@@ -276,15 +277,16 @@ fn main() {
 ## 测试
 
 ```sh
-# 各树回归
-bash win/regress.sh      # Windows
-bash linux/regress.sh    # Linux
+# 正式发布回归（CLI、类型、模块、标准库与 O0-O3 结果）
+bash win/regress.sh              # Windows（Git Bash）
+bash linux/regress.sh            # Linux
 
-# 全量测试（400 项: tests 55×4 + fuzz 40×4 + bench 5×4，对比 gcc 参考校验和）
-bash win/fulltest.sh
+# 可选：与 gcc 参考值对比 benchmark 校验和
+bash bench/bench_regress.sh win/mira.exe
 ```
 
-`fulltest.sh` 的 fuzz/bench 段依赖 `bench/` 目录。
+两个平台入口共用 `regress-common.sh`。回归用例继续保留在各平台的 `tests/`
+目录中；一次性的功能 runner 和调查探针不再随正式源码发布。
 
 ## 版本
 
