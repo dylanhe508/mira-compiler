@@ -141,7 +141,7 @@ and investigation probes are intentionally not shipped.
 
 ## Version
 
-5.13.4 (`mira -v` output)
+5.14.0 (`mira -v` output)
 
 ## Notes
 
@@ -290,7 +290,7 @@ bash bench/bench_regress.sh win/mira.exe
 
 ## 版本
 
-5.13.4（`mira -v` 输出）
+5.14.0（`mira -v` 输出）
 
 ## 注意事项
 

@@ -1337,7 +1337,7 @@ void mira_repl(void) {
     G = &interp;
 
     itp_color_cyan();
-    fprintf(stderr, "Mira Interpreter (REPL) v5.13.4\n");
+    fprintf(stderr, "Mira Interpreter (REPL) v5.14.0\n");
     fprintf(stderr, "Type expressions to evaluate. Type 'exit' or 'quit' to leave.\n");
     itp_color_reset();
     fprintf(stderr, "\n");

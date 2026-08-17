@@ -10,7 +10,7 @@ if [ -z "$MIRA" ]; then
     else MIRA="$PLATFORM_DIR/mira"; fi
 fi
 GCC=${GCC:-gcc}
-EXPECTED_VERSION=${MIRA_EXPECTED_VERSION:-}
+EXPECTED_VERSION=${MIRA_EXPECTED_VERSION:-5.14.0}
 
 [ -f "$MIRA" ] || { echo "[FAIL] compiler not found: $MIRA" >&2; exit 2; }
 [ -d "$TEST_DIR" ] || { echo "[FAIL] tests not found: $TEST_DIR" >&2; exit 2; }

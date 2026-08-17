@@ -1255,7 +1255,7 @@ do_link:;
 }
 
 
-#define MIRA_VERSION "5.13.4"
+#define MIRA_VERSION "5.14.0"
 #define LINKER_VERSION "1.2.2"
 
 static void print_version(void) {
