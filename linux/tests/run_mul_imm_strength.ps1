@@ -33,7 +33,7 @@ foreach ($level in 0..3) {
 }
 
 $asm = Join-Path $out 'O2.asm'
-& $Mira -S $source $asm -O2 | Out-Host
+& $Mira -S $source -o $asm -O2 | Out-Host
 if ($LASTEXITCODE -ne 0) { throw 'O2 assembly build failed' }
 $imul = @((Get-Content $asm) | Select-String '(?i)^\s*imul\s').Count
 $shl = @((Get-Content $asm) | Select-String '(?i)^\s*(shl|sal)\s').Count

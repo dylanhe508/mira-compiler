@@ -357,7 +357,7 @@ git commit -m "test(cli): move IR inspection to explicit emit mode"
 - 产生：`bool ir_asm_supports_opcode(IrOpcode opcode)`
 - 消费：`-S` 与 `--emit=asm` 终点。
 
-- [ ] **步骤 1：写 opcode 完整性和端到端 RED**
+- [x] **步骤 1：写 opcode 完整性和端到端 RED**
 
 `asm_writer_test.c` 遍历：
 
@@ -381,7 +381,7 @@ puts("ASM WRITER OPCODE COVERAGE PASS");
 要求两文件 SHA-256 相同，并由 `gcc -c short.s -o short.obj` 成功汇编。当前没有
 写出器，预期 RED。
 
-- [ ] **步骤 2：实现文件级 GNU Intel 结构**
+- [x] **步骤 2：实现文件级 GNU Intel 结构**
 
 输出头和段指令固定为：
 
@@ -407,7 +407,7 @@ qword [addr]   -> QWORD PTR [addr]
 byte [addr]    -> BYTE PTR [addr]
 ```
 
-- [ ] **步骤 3：实现穷尽指令映射**
+- [x] **步骤 3：实现穷尽指令映射**
 
 writer 的 switch 必须覆盖 `IR_MOV_REG_REG` 到 `IR_LEA_IDX` 的每个枚举项。
 一对一指令使用 opcode 表返回助记符；特殊项使用专门 formatter。至少明确补齐旧
@@ -437,7 +437,7 @@ mira_error_simple(1, "cannot emit assembly for opcode %d to '%s'",
                   (int)unsupported, output_path);
 ```
 
-- [ ] **步骤 4：验证汇编可消费且别名稳定**
+- [x] **步骤 4：验证汇编可消费且别名稳定**
 
 运行 opcode C 测试、端到端脚本以及 O0–O3 的整数、f64、字符串、分支、调用、
 BSS 和 AVX fixture。预期 `.s` 均能由宿主 `gcc -c` 接受；`-S` 与长选项哈希相同。

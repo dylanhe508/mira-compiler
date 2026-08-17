@@ -87,10 +87,10 @@ function Count-Multiply([string]$Asm) {
 }
 $enabledAsm = Join-Path $out 'enabled.asm'
 $disabledAsm = Join-Path $out 'disabled.asm'
-& $Mira -S $source $enabledAsm -O3 | Out-Host
+& $Mira -S $source -o $enabledAsm -O3 | Out-Host
 if ($LASTEXITCODE -ne 0) { throw 'enabled IR compile failed' }
 $env:MIRA_DECISION_DISABLE = 'affine-collapse'
-try { & $Mira -S $source $disabledAsm -O3 | Out-Host }
+try { & $Mira -S $source -o $disabledAsm -O3 | Out-Host }
 finally { Remove-Item Env:MIRA_DECISION_DISABLE -ErrorAction SilentlyContinue }
 if ($LASTEXITCODE -ne 0) { throw 'disabled IR compile failed' }
 $enabled = Count-Multiply $enabledAsm

@@ -119,7 +119,11 @@ function Assert-OldRecursionStackOverflow([string]$Compiler, [string]$Tag) {
 
 function Dump-Shape([string]$Compiler, [string]$Tag, [int]$Level) {
     $asm = Join-Path $root "nonvolatile_${Tag}_O${Level}.asm"
-    & $Compiler -S $source $asm "-O$Level"
+    if ($Tag -eq 'old') {
+        & $Compiler -S $source $asm "-O$Level"
+    } else {
+        & $Compiler -S $source -o $asm "-O$Level"
+    }
     if ($LASTEXITCODE -ne 0) { throw "$Tag O$level assembly dump failed" }
     $body = Get-FunctionText $asm 'ssa_shape'
     $spills = [regex]::Matches(

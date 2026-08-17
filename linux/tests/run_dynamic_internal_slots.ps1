@@ -64,10 +64,10 @@ function Count-Loop-Multiply([string]$Asm) {
 
 $enabledAsm = Join-Path $out 'enabled.asm'
 $disabledAsm = Join-Path $out 'disabled.asm'
-& $Mira -S $source $enabledAsm -O3 | Out-Host
+& $Mira -S $source -o $enabledAsm -O3 | Out-Host
 if ($LASTEXITCODE -ne 0) { throw 'enabled assembly build failed' }
 $env:MIRA_DECISION_DISABLE = 'affine'
-try { & $Mira -S $source $disabledAsm -O3 | Out-Host }
+try { & $Mira -S $source -o $disabledAsm -O3 | Out-Host }
 finally { Remove-Item Env:MIRA_DECISION_DISABLE -ErrorAction SilentlyContinue }
 if ($LASTEXITCODE -ne 0) { throw 'disabled assembly build failed' }
 $enabled = Count-Loop-Multiply $enabledAsm
@@ -77,5 +77,5 @@ if ($enabled -ne 0 -or $disabled -ne 20) {
 }
 $lines = Get-Content -LiteralPath $enabledAsm
 $reservation = ($lines | Select-String '^mira_vars:$' -Context 0,1).Context.PostContext[0].Trim()
-if ($reservation -ne 'resq 81') { throw "expected resq 81, got $reservation" }
+if ($reservation -ne '.zero 648') { throw "expected .zero 648, got $reservation" }
 Write-Output "SHAPE PASS enabled_imul=0 disabled_imul=20 bss=$reservation"

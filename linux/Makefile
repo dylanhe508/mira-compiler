@@ -22,7 +22,7 @@ LDFLAGS = -no-pie -lpthread -lm
 COMPILER_SRCS = \
 	main.c cli.c lexer.c parser.c typecheck.c codegen.c hash.c memory.c error.c \
 	codegen/decision.c codegen/stdlib_builtins.c codegen/ir.c codegen/ir_opt.c \
-	codegen/ir_cfg_cleanup.c codegen/ir_dump.c \
+	codegen/ir_cfg_cleanup.c codegen/ir_dump.c codegen/asm_writer.c \
 	codegen/encoder.c codegen/elf_writer.c codegen/abi_sysv.c \
 	codegen/ssa_builder.c codegen/ssa_function_index.c codegen/ssa_lower.c codegen/ssa_dom.c \
 	codegen/ssa_opt.c codegen/ssa_affine.c codegen/ssa_module_facts.c codegen/ssa_vm_profile.c \

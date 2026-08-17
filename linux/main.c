@@ -4,6 +4,7 @@
 #include "codegen/abi.h"
 #include "linker/linker.h"
 #include "codegen/target.h"
+#include "codegen/asm_writer.h"
 #include "cli.h"
 #include <stdlib.h>
 #include <string.h>
@@ -742,6 +743,22 @@ void compile_file_ir_dump(const char *path, const char *out_path) {
 	compile_unit_dispose(&unit);
 }
 
+static void compile_file_asm_dump(const char *path, const char *out_path) {
+	MiraCompileUnit unit;
+	compile_file_to_final_ir(path, out_path, &unit);
+	FILE *out = fopen(out_path, "w");
+	if (!out) mira_error_simple(1, "cannot write '%s'", out_path);
+	IrOpcode unsupported = 0;
+	if (!ir_write_gas_intel(unit.ir, out, &unsupported)) {
+		fclose(out);
+		remove(out_path);
+		mira_error_simple(1, "cannot emit assembly for opcode %d to '%s'",
+		                  (int)unsupported, out_path);
+	}
+	fclose(out);
+	compile_unit_dispose(&unit);
+}
+
 /* 锟斤拷锟斤拷璩婏拷鎾滃啎瀵ユ憵锟姐棁锟斤拷皎叝锟界殱锟斤拷铦忕潈黏槝鎲掓€狆疯潕椐侊拷铦忔潯锟斤拷瀵★拷锟介槨鎼囩攬黏槳锟芥啰鐬撅拷鐟藉楫燂拷鎵瑰煄鎾夊ⅶ锟芥挓瑙佸欢锟借姡锟界瀳洵炬尓锟藉仸鈥垫啳闉夛拷锟芥黏棃锟界礁楫熸啞韪癸拷锟斤拷闅烉Б诧拷锟芥嫏锟斤拷锟界敘鎲＄儛鍋滆潳娼伯锟斤拷锟借潝璁愶拷闈橈拷锟斤拷楹拷锟斤拷锟界槥绁夛拷锟藉锟借澐锟界筏锟借锟斤拷鑱嗭拷锟斤拷鍓╋拷锟斤拷黏槳楝诧拷锟斤拷锟斤拷锟借潖鏇勶拷锟斤拷皈⒉鍑冿拷瀵ワ拷锟借矈锟斤拷锟借澊锟藉湌锟芥暪馉墰锟芥喛閸︷ぇ氳潪鑴ら疅鏁硅ǐ濡ｆ啋鑴ｏ拷锟藉吀鏃啳瑭ㄩ墑鐠婃铏燂拷鎯╋拷锟藉锟芥啋鑷笡閳姺锟斤拷鍙燂拷锟金ò濓拷锟戒帤锟斤拷鍒革拷锟斤拷锟介瘡? .mira 锟?.asm 锟?.obj 锟?.exe */
 
 static void full_build(const char *mira_path) {
@@ -1294,14 +1311,15 @@ static bool apply_cli_target_options(const MiraCliOptions *options) {
 	return true;
 }
 
-static void default_ir_output_path(const char *input, char *output, size_t output_size) {
+static void default_emit_output_path(const char *input, const char *extension,
+		char *output, size_t output_size) {
 	const char *base = strrchr(input, '\\');
 	if (!base) base = strrchr(input, '/');
 	base = base ? base + 1 : input;
 	snprintf(output, output_size, "%s", base);
 	char *dot = strrchr(output, '.');
 	if (dot) *dot = '\0';
-	strncat(output, ".ir", output_size - strlen(output) - 1);
+	strncat(output, extension, output_size - strlen(output) - 1);
 }
 
 /* 鎲嶈悋馉綄锟借雹鑰拷璩㈡啢锟芥綌铻傝潳椁咃拷锟藉潝鍗斤拷鍗濓拷锟介枡锟斤拷绁嗭拷锟借雹楝茶潿稷爟锟斤拷搴忦　烇拷锟界绺戯拷鎷嶇肪锟借€曪拷瀹嬶拷绠忥拷锟姐殮绶ょ攬妯筹拷锟芥妴锟芥拸钀樺啫閵碘姤黏獤鐠婃枟锟界拤锟斤拷锟斤几妞拷鋫块槷鎲撹劑锟借彍韪庢喅妗吤拷缇擄拷鎲℃Ы锟斤拷鎽帮拷锟界爞锟?REPL 鐬堝垹悌炴啰鐞匡拷锟金滐拷锟界﹥锟斤拷鐮嶏拷锟金滃櫒锟借疇锟芥懓皎盎锟芥挊鍦掔笣鐬堬拷锟斤拷涑★拷锟斤拷楹潪鍦堥笜鐠嗭拷鐠夊棯绶わ拷绠忔櫠鎲块灍锟借潽椐侊拷锟藉敵閴勬啋鎬ワ拷铦虫激锟斤拷铦ゆ疆榇★拷鍫掞拷锟界兙锟斤拷皙榿鐓撅拷锟借尝浒荤瀴鍡嗭拷锟藉嚱锟芥埈鍓滐拷锟?*/
@@ -1311,10 +1329,12 @@ int main(int argc, char **argv) {
 	if (!target_detect_native(&mira_target_features)) target_set_baseline(&mira_target_features);
 	mira_target_avx2 = mira_target_features.avx2 ? 1 : 0;
 
-	bool wants_ir = false;
+	bool wants_explicit_text_emit = false;
 	for (int i = 1; i < argc; ++i)
-		if (strcmp(argv[i], "--emit=ir") == 0) wants_ir = true;
-	if (wants_ir) {
+		if (strcmp(argv[i], "--emit=ir") == 0 ||
+		    strcmp(argv[i], "--emit=asm") == 0 || strcmp(argv[i], "-S") == 0)
+			wants_explicit_text_emit = true;
+	if (wants_explicit_text_emit) {
 		MiraCliOptions cli_options;
 		char cli_error[256];
 		if (!mira_cli_parse(argc, argv, &cli_options, cli_error, sizeof(cli_error))) {
@@ -1325,11 +1345,18 @@ int main(int argc, char **argv) {
 		mira_opt_level = cli_options.opt_level;
 		if (!apply_cli_target_options(&cli_options)) return 1;
 		if (!cli_options.output) {
-			default_ir_output_path(cli_options.input, default_output, sizeof(default_output));
+			default_emit_output_path(cli_options.input,
+			        cli_options.emit == MIRA_EMIT_IR ? ".ir" : ".s",
+			        default_output, sizeof(default_output));
 			cli_options.output = default_output;
 		}
-		compile_file_ir_dump(cli_options.input, cli_options.output);
-		printf("IR written to %s\n", cli_options.output);
+		if (cli_options.emit == MIRA_EMIT_IR) {
+			compile_file_ir_dump(cli_options.input, cli_options.output);
+			printf("IR written to %s\n", cli_options.output);
+		} else {
+			compile_file_asm_dump(cli_options.input, cli_options.output);
+			printf("Assembly written to %s\n", cli_options.output);
+		}
 		return 0;
 	}
 

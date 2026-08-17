@@ -1,0 +1,15 @@
+fn choose(flag: bool, left: f64, right: f64) -> f64 {
+    if (flag) { left } else { right }
+}
+
+fn main() {
+    mut total: i64 = 0;
+    mut i: i64 = 0;
+    while (i < 8) {
+        total = total + i * 3;
+        i = i + 1;
+    }
+    print(total);
+    print(choose(false, 1.5, 2.5));
+    print("assembly");
+}
